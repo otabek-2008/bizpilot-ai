@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import type { Project } from "@/types";
 import { generateWithAI } from "@/services/generator";
 import { saveDocument, getDocument } from "@/services/projects";
+import { logActivity } from "@/lib/activity";
 import {
   ArrowRight,
   Briefcase,
@@ -56,7 +57,7 @@ export default function ProjectPage() {
       .single();
 
     if (error || !data) {
-      router.replace("/dashboard");
+      router.replace("/dashboard/business");
       return;
     }
 
@@ -106,6 +107,7 @@ export default function ProjectPage() {
         );
       } else {
         setHasDocs(true);
+        logActivity("business", `AI hujjatlar tayyor: ${project?.title ?? "loyiha"}`);
       }
     } catch (e) {
       console.error(e);
@@ -139,7 +141,7 @@ export default function ProjectPage() {
         <p className="text-sm font-medium text-brand-400">Loyiha</p>
         <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">{project.title}</h1>
         <p className="mt-3 max-w-2xl text-zinc-400">
-          BizPilot AI sizning biznes g&apos;oyangiz asosida biznes reja, marketing
+          CampusAI sizning biznes g&apos;oyangiz asosida biznes reja, marketing
           strategiyasi va moliyaviy reja yaratadi.
         </p>
       </div>

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Nusxalangan uchinchi tomon fayllari (scripts/copy-vendor.mjs)
+    "public/vendor/**",
   ]),
 ]);
 

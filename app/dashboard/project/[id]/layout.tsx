@@ -1,16 +1,10 @@
-import ProjectSidebar from "@/components/ProjectSidebar";
-import Backdrop from "@/components/Backdrop";
+import ProjectTabs from "@/components/ProjectTabs";
 
-export default function ProjectLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ProjectLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col text-white lg:flex-row">
-      <Backdrop />
-      <ProjectSidebar />
-      <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+    <div className="flex min-w-0 flex-col">
+      <ProjectTabs />
+      {children}
     </div>
   );
 }

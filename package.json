@@ -1,19 +1,29 @@
 {
-  "name": "bizpilot-ai",
+  "name": "campusai",
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-vendor.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-vendor.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test lib/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
+    "@mediapipe/tasks-vision": "^1.0.1",
     "@supabase/server": "^1.4.1",
     "@supabase/supabase-js": "^2.112.2",
+    "docx": "^9.7.2",
+    "html2canvas-pro": "^2.4.5",
+    "jszip": "^3.10.2",
     "lucide-react": "^1.29.0",
+    "mammoth": "^1.13.0",
     "next": "16.3.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "^4.6.5"
@@ -26,6 +36,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "engines": {

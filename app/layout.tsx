@@ -13,9 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BizPilot AI — biznes rejangizni AI bilan yarating",
+  title: {
+    default: "CampusAI — talabalar uchun aqlli vositalar",
+    template: "%s · CampusAI",
+  },
   description:
-    "BizPilot AI biznes g'oyangiz asosida biznes reja, marketing strategiyasi va moliyaviy prognozni bir necha daqiqada tayyorlaydi.",
+    "Lotin ↔ Kirill, 3×4 rasm, PDF ↔ Word konvertori, harf registri va AI biznes reja — talabalar uchun bitta platformada.",
 };
 
 export const viewport: Viewport = {

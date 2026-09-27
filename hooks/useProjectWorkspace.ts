@@ -30,7 +30,7 @@ export function useProjectWorkspace() {
       .single();
 
     if (error || !data) {
-      router.replace("/dashboard");
+      router.replace("/dashboard/business");
       return;
     }
 

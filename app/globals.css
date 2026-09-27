@@ -17,6 +17,10 @@
   --animate-aurora: aurora 18s ease-in-out infinite alternate;
   --animate-fade-up: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-card-in: card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-spin-slow: spin 8s linear infinite;
+  --animate-gradient: gradient-pan 6s ease infinite;
+  --animate-pulse-ring: pulse-ring 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
 
   @keyframes float {
     0%,
@@ -45,6 +49,38 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      transform: translateY(18px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes gradient-pan {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.8);
+      opacity: 0.7;
+    }
+    100% {
+      transform: scale(2.2);
+      opacity: 0;
     }
   }
 
@@ -226,6 +262,229 @@ body {
     background-image: url("/images/noise.svg");
     opacity: 0.05;
     mix-blend-mode: overlay;
+  }
+}
+
+/* ---------- Bo'limlar: aksent ranglari va kirish animatsiyalari ---------- */
+
+.module-scope {
+  --accent: #8b5cf6;
+  --accent-2: #6366f1;
+}
+
+.accent-gradient {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+
+.accent-text {
+  background: linear-gradient(100deg, #fff 10%, var(--accent) 60%, var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.accent-soft {
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  color: color-mix(in oklab, var(--accent) 55%, white);
+}
+
+.accent-ring:focus-visible,
+.accent-ring:focus {
+  border-color: color-mix(in oklab, var(--accent) 70%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.875rem;
+  padding: 0.7rem 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background-size: 160% 160%;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 10px 30px -12px color-mix(in oklab, var(--accent) 80%, transparent);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    filter 0.2s,
+    background-position 0.4s;
+}
+
+.btn-accent:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  background-position: 100% 50%;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 16px 40px -14px color-mix(in oklab, var(--accent) 95%, transparent);
+}
+
+.btn-accent:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-accent:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.875rem;
+  color: #a1a1aa;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(255 255 255 / 0.03);
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
+}
+
+.chip:hover {
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.18);
+}
+
+.chip[data-active="true"] {
+  color: #fff;
+  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  box-shadow: 0 6px 20px -10px color-mix(in oklab, var(--accent) 90%, transparent);
+}
+
+/* Karta ustiga kelganda ko'tarilish + aksent nur */
+.lift {
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+
+.lift:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 26px 60px -30px color-mix(in oklab, var(--accent) 80%, transparent);
+}
+
+.lift .lift-icon {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lift:hover .lift-icon {
+  transform: rotate(-8deg) scale(1.12);
+}
+
+/* Bolalar elementlari navbat bilan paydo bo'ladi */
+.stagger > * {
+  animation: var(--animate-card-in);
+}
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+.stagger > *:nth-child(7) { animation-delay: 360ms; }
+.stagger > *:nth-child(n + 8) { animation-delay: 420ms; }
+
+.enter-rise { animation: enter-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.enter-slide { animation: enter-slide 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.enter-slide-left { animation: enter-slide-left 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.enter-flip { animation: enter-flip 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: top center; }
+.enter-zoom { animation: enter-zoom 0.55s cubic-bezier(0.34, 1.3, 0.64, 1) both; }
+.enter-blur { animation: enter-blur 0.7s ease-out both; }
+.enter-skew { animation: enter-skew 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.enter-pop { animation: enter-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.enter-drop { animation: enter-drop 0.6s cubic-bezier(0.34, 1.3, 0.64, 1) both; }
+
+@keyframes enter-rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-slide {
+  from { opacity: 0; transform: translateX(48px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-slide-left {
+  from { opacity: 0; transform: translateX(-48px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-flip {
+  from { opacity: 0; transform: perspective(1200px) rotateX(-14deg) translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-zoom {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-blur {
+  from { opacity: 0; filter: blur(14px); transform: scale(1.02); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+@keyframes enter-skew {
+  from { opacity: 0; transform: skewY(3deg) translateY(30px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-pop {
+  0% { opacity: 0; transform: scale(0.85); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes enter-drop {
+  from { opacity: 0; transform: translateY(-36px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.animate-drawer-in { animation: drawer-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade-in { animation: fade-in 0.25s ease both; }
+.animate-bubble-in { animation: bubble-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+.typing-dot {
+  animation: typing 1.2s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Ingichka scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
 
