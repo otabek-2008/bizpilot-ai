@@ -4,7 +4,20 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import {
+  ArrowUpRight,
+  CalendarDays,
+  FileText,
+  FolderKanban,
+  LogOut,
+  Plus,
+  Rocket,
+  Sparkles,
+} from "lucide-react";
 import CreateProjectModal from "@/components/CreateProjectModal";
+import Backdrop from "@/components/Backdrop";
+import Logo from "@/components/Logo";
+import LoadingScreen from "@/components/LoadingScreen";
 
 type Project = {
   id: string;
@@ -105,7 +118,7 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Create project error:", error);
-      alert("Project yaratishda xatolik yuz berdi.");
+      alert("Loyiha yaratishda xatolik yuz berdi.");
     }
   }
 
@@ -123,162 +136,157 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#0f0f0f] text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-zinc-700 border-t-purple-500 rounded-full animate-spin mx-auto" />
-
-          <p className="text-zinc-400 mt-4">
-            Loading dashboard...
-          </p>
-        </div>
+      <main className="relative flex min-h-screen text-white">
+        <Backdrop />
+        <LoadingScreen label="Dashboard yuklanmoqda..." />
       </main>
     );
   }
 
+  const name = email.split("@")[0];
+
   return (
-    <main className="min-h-screen bg-[#0f0f0f] text-white">
+    <main className="relative min-h-screen text-white">
+      <Backdrop />
 
       {/* HEADER */}
-      <header className="border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-white/5 bg-ink/60 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <Logo href="/dashboard" />
 
-          <Link
-            href="/dashboard"
-            className="text-3xl font-bold text-purple-500"
-          >
-            BizPilot AI
-          </Link>
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2.5 rounded-full border border-white/10 bg-white/5 py-1 pl-1 pr-4 sm:flex">
+              <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-brand-400 to-indigo-600 text-xs font-semibold uppercase">
+                {name.charAt(0)}
+              </span>
+              <span className="max-w-[200px] truncate text-sm text-zinc-300">{email}</span>
+            </div>
 
-          <div className="flex items-center gap-5">
-
-            <span className="text-zinc-400 text-sm">
-              {email}
-            </span>
-
-            <button
-              onClick={logout}
-              className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg transition"
-            >
-              Logout
+            <button onClick={logout} className="btn-ghost !px-3.5 !py-2 text-sm" title="Chiqish">
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Chiqish</span>
             </button>
-
           </div>
         </div>
       </header>
 
-      {/* MAIN */}
-      <div className="max-w-7xl mx-auto px-8 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        {/* HERO */}
+        <div className="animate-fade-up flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-sm font-medium text-brand-400">Dashboard</p>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
+              Salom, <span className="text-gradient">{name}</span> 👋
+            </h1>
+            <p className="mt-3 text-zinc-400">Keyingi biznesingizni AI bilan quring.</p>
+          </div>
 
-        <h1 className="text-5xl font-bold">
-          Welcome 👋
-        </h1>
+          <button onClick={() => setModalOpen(true)} className="btn-primary shrink-0">
+            <Plus size={18} /> Yangi loyiha
+          </button>
+        </div>
 
-        <p className="text-zinc-400 mt-3">
-          Build your next AI business.
-        </p>
-
-        {/* NEW PROJECT */}
-        <button
-          onClick={() => setModalOpen(true)}
-          className="mt-10 bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-xl font-semibold transition"
-        >
-          + New Project
-        </button>
+        {/* STATS */}
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          {[
+            { icon: FolderKanban, label: "Loyihalar", value: projectsLoading ? "—" : String(projects.length) },
+            { icon: FileText, label: "Har loyihada hujjat", value: "3" },
+            { icon: Sparkles, label: "AI model", value: "Claude" },
+          ].map(({ icon: Icon, label, value }) => (
+            <div key={label} className="glass flex items-center gap-4 rounded-2xl p-5">
+              <span className="grid size-11 place-items-center rounded-xl bg-brand-500/15 text-brand-300">
+                <Icon size={20} />
+              </span>
+              <div>
+                <p className="text-2xl font-semibold">{value}</p>
+                <p className="text-sm text-zinc-500">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* PROJECTS */}
         <div className="mt-14">
-
-          <div className="flex items-center justify-between mb-6">
-
-            <h2 className="text-2xl font-bold">
-              My Projects
-            </h2>
-
-            {projectsLoading && (
-              <span className="text-sm text-zinc-500">
-                Loading projects...
-              </span>
-            )}
-
-          </div>
+          <h2 className="mb-6 text-xl font-semibold">Mening loyihalarim</h2>
 
           {projectsLoading ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8">
-
-              <div className="animate-pulse space-y-4">
-                <div className="h-5 bg-zinc-800 rounded w-1/3" />
-                <div className="h-4 bg-zinc-800 rounded w-1/2" />
-              </div>
-
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="glass space-y-4 rounded-3xl p-6">
+                  <div className="skeleton size-11 rounded-xl" />
+                  <div className="skeleton h-5 w-2/3 rounded-md" />
+                  <div className="skeleton h-4 w-1/3 rounded-md" />
+                </div>
+              ))}
             </div>
           ) : projects.length === 0 ? (
-
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8">
-
-              <p className="text-zinc-500">
-                No projects yet.
+            <div className="glass relative overflow-hidden rounded-3xl px-8 py-16 text-center">
+              <div aria-hidden className="absolute left-1/2 top-0 h-40 w-96 -translate-x-1/2 rounded-full bg-brand-500/20 blur-3xl" />
+              <div className="relative mx-auto grid size-16 place-items-center rounded-2xl border border-white/10 bg-white/5">
+                <Rocket size={28} className="text-brand-300" />
+              </div>
+              <h3 className="relative mt-6 text-xl font-semibold">Hali loyiha yo&apos;q</h3>
+              <p className="relative mx-auto mt-2 max-w-sm text-zinc-400">
+                Birinchi loyihangizni yarating va AI sizga biznes reja tayyorlab bersin.
               </p>
-
+              <button onClick={() => setModalOpen(true)} className="btn-primary relative mt-8">
+                <Plus size={18} /> Loyiha yaratish
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               <button
                 onClick={() => setModalOpen(true)}
-                className="mt-4 text-purple-400 hover:text-purple-300"
+                className="group flex min-h-[190px] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-white/15 text-zinc-500 transition hover:border-brand-400/60 hover:bg-brand-500/5 hover:text-brand-300"
               >
-                Create your first project →
+                <span className="grid size-12 place-items-center rounded-2xl border border-current/30 transition group-hover:scale-110">
+                  <Plus size={22} />
+                </span>
+                Yangi loyiha
               </button>
 
-            </div>
-
-          ) : (
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-              {projects.map((project) => (
-
+              {projects.map((project, i) => (
                 <Link
                   href={`/dashboard/project/${project.id}`}
                   key={project.id}
+                  className="glass glass-hover group relative flex min-h-[190px] flex-col overflow-hidden rounded-3xl p-6"
                 >
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 hover:border-purple-500 transition cursor-pointer h-full">
+                  <div aria-hidden className={`absolute -right-12 -top-12 size-36 rounded-full bg-gradient-to-br ${accents[i % accents.length]} to-transparent blur-2xl`} />
+                  <span className="relative grid size-11 place-items-center rounded-xl border border-white/10 bg-white/5 text-lg font-semibold uppercase text-brand-200">
+                    {project.title.charAt(0)}
+                  </span>
 
-                    <h3 className="text-xl font-bold">
-                      {project.title}
-                    </h3>
+                  <h3 className="relative mt-5 line-clamp-2 text-lg font-semibold">{project.title}</h3>
 
-                    {project.description && (
-                      <p className="text-zinc-400 mt-3">
-                        {project.description}
-                      </p>
-                    )}
+                  {project.description && (
+                    <p className="relative mt-2 line-clamp-2 text-sm text-zinc-400">{project.description}</p>
+                  )}
 
-                    <p className="text-zinc-600 text-sm mt-5">
-                      {new Date(
-                        project.created_at
-                      ).toLocaleString()}
-                    </p>
-
-                    <div className="mt-5 text-purple-400 text-sm">
-                      Open project →
-                    </div>
-
+                  <div className="relative mt-auto flex items-center justify-between pt-5 text-sm">
+                    <span className="flex items-center gap-1.5 text-zinc-500">
+                      <CalendarDays size={14} />
+                      {new Date(project.created_at).toLocaleDateString("uz-UZ", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <ArrowUpRight size={18} className="text-zinc-500 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-300" />
                   </div>
                 </Link>
-
               ))}
-
             </div>
-
           )}
-
         </div>
       </div>
 
-      {/* MODAL */}
       <CreateProjectModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onCreate={createProject}
       />
-
     </main>
   );
 }
+
+const accents = ["from-brand-500/30", "from-cyan-500/25", "from-fuchsia-500/25", "from-emerald-500/25"];

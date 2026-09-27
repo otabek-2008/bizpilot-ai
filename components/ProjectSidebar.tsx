@@ -9,6 +9,7 @@ import {
   Wallet,
   ArrowLeft,
 } from "lucide-react";
+import Logo from "@/components/Logo";
 
 export default function ProjectSidebar() {
   const params = useParams();
@@ -18,50 +19,64 @@ export default function ProjectSidebar() {
   const base = `/dashboard/project/${projectId}`;
 
   const items = [
-    { title: "Dashboard", href: base, icon: LayoutDashboard },
-    { title: "Business Plan", href: `${base}/biznes-plan`, icon: Briefcase },
+    { title: "Umumiy", href: base, icon: LayoutDashboard },
+    { title: "Biznes reja", href: `${base}/biznes-plan`, icon: Briefcase },
     { title: "Marketing", href: `${base}/marketing`, icon: Megaphone },
-    { title: "Finance", href: `${base}/finance`, icon: Wallet },
+    { title: "Moliya", href: `${base}/finance`, icon: Wallet },
   ];
 
   return (
-    <aside className="w-64 bg-zinc-900 border-r border-zinc-800 min-h-screen p-6 flex flex-col shrink-0">
-      <Link
-        href="/dashboard"
-        className="text-2xl font-bold text-purple-500"
-      >
-        BizPilot AI
-      </Link>
+    <aside className="sticky top-0 z-30 border-b border-white/5 bg-ink/70 backdrop-blur-xl lg:h-screen lg:w-72 lg:shrink-0 lg:border-b-0 lg:border-r lg:bg-white/[0.02]">
+      <div className="flex h-full flex-col gap-4 p-4 lg:p-6">
+        <div className="flex items-center justify-between">
+          <Logo href="/dashboard" />
+          <Link
+            href="/dashboard"
+            aria-label="Barcha loyihalar"
+            className="rounded-lg p-2 text-zinc-400 transition hover:bg-white/5 hover:text-white lg:hidden"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+        </div>
 
-      <div className="mt-8 space-y-2 flex-1">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
+        <p className="mt-6 hidden px-3 text-xs font-medium uppercase tracking-wider text-zinc-600 lg:block">
+          Ish maydoni
+        </p>
 
-          return (
-            <Link
-              key={item.title}
-              href={item.href}
-              className={`flex items-center gap-3 w-full p-3 rounded-xl transition ${
-                active
-                  ? "bg-purple-600/20 text-purple-400"
-                  : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
-              }`}
-            >
-              <Icon size={20} />
-              {item.title}
-            </Link>
-          );
-        })}
+        <nav className="-mx-1 flex gap-1 overflow-x-auto px-1 lg:flex-1 lg:flex-col lg:overflow-visible">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const active = pathname === item.href;
+
+            return (
+              <Link
+                key={item.title}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`relative flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+                  active
+                    ? "bg-gradient-to-r from-brand-500/20 to-brand-500/5 text-white shadow-[inset_0_0_0_1px_rgb(167_139_250/0.25)]"
+                    : "text-zinc-400 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                {active && (
+                  <span className="absolute left-0 top-1/2 hidden h-5 w-0.5 -translate-y-1/2 rounded-full bg-brand-400 lg:block" />
+                )}
+                <Icon size={18} className={active ? "text-brand-300" : ""} />
+                {item.title}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <Link
+          href="/dashboard"
+          className="hidden items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-white lg:flex"
+        >
+          <ArrowLeft size={18} />
+          Barcha loyihalar
+        </Link>
       </div>
-
-      <Link
-        href="/dashboard"
-        className="flex items-center gap-3 p-3 rounded-xl text-zinc-400 hover:bg-zinc-800 hover:text-white transition mt-4"
-      >
-        <ArrowLeft size={20} />
-        All Projects
-      </Link>
     </aside>
   );
 }

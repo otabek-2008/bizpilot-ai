@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import AuthShell, { FormError } from "@/components/AuthShell";
+import { Spinner } from "@/components/LoadingScreen";
+import city from "@/public/images/city.webp";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,7 +21,7 @@ export default function LoginPage() {
     setError("");
 
     if (!email.trim() || !password) {
-      setError("Email va passwordni kiriting.");
+      setError("Email va parolni kiriting.");
       return;
     }
 
@@ -52,93 +56,72 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0f0f0f] text-white flex items-center justify-center px-6">
+    <AuthShell
+      title="Xush kelibsiz"
+      subtitle="BizPilot AI hisobingizga kiring."
+      image={city}
+      imageAlt="Zamonaviy biznes markazi binolari"
+      headline="Loyihalaringiz sizni kutmoqda."
+      points={[
+        "Biznes reja, marketing va moliya bir joyda",
+        "Hujjatlar avtomatik saqlanadi",
+        "Istalgan vaqtda qayta yaratish mumkin",
+      ]}
+    >
+      <FormError message={error} />
 
-      <div className="w-full max-w-md">
-
-        <Link
-          href="/"
-          className="block text-center text-3xl font-bold text-purple-500 mb-10"
-        >
-          BizPilot AI
-        </Link>
-
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-
-          <h1 className="text-3xl font-bold">
-            Welcome back
-          </h1>
-
-          <p className="text-zinc-400 mt-2">
-            Login to your BizPilot AI account.
-          </p>
-
-          {error && (
-            <div className="mt-6 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-4 text-sm">
-              {error}
-            </div>
-          )}
-
-          <form
-            onSubmit={handleLogin}
-            className="mt-8 space-y-5"
-          >
-
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">
-                Email
-              </label>
-
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-                disabled={loading}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white outline-none focus:border-purple-500 disabled:opacity-50"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">
-                Password
-              </label>
-
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
-                autoComplete="current-password"
-                disabled={loading}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white outline-none focus:border-purple-500 disabled:opacity-50"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-not-allowed py-3 rounded-xl font-semibold transition"
-            >
-              {loading ? "Logging in..." : "Login"}
-            </button>
-
-          </form>
-
-          <p className="text-center text-zinc-500 text-sm mt-6">
-            Don&apos;t have an account?{" "}
-
-            <Link
-              href="/register"
-              className="text-purple-400 hover:text-purple-300"
-            >
-              Create account
-            </Link>
-          </p>
-
+      <form onSubmit={handleLogin} className="space-y-5">
+        <div>
+          <label htmlFor="email" className="mb-2 block text-sm text-zinc-400">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="siz@example.com"
+            autoComplete="email"
+            disabled={loading}
+            className="field"
+          />
         </div>
-      </div>
-    </main>
+
+        <div>
+          <label htmlFor="password" className="mb-2 block text-sm text-zinc-400">
+            Parol
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            disabled={loading}
+            className="field"
+          />
+        </div>
+
+        <button type="submit" disabled={loading} className="btn-primary w-full py-3.5">
+          {loading ? (
+            <>
+              <Spinner className="size-4" /> Kirilmoqda...
+            </>
+          ) : (
+            <>
+              Kirish <ArrowRight size={18} />
+            </>
+          )}
+        </button>
+      </form>
+
+      <p className="mt-8 text-center text-sm text-zinc-500">
+        Hisobingiz yo&apos;qmi?{" "}
+        <Link href="/register" className="font-medium text-brand-400 hover:text-brand-300">
+          Ro&apos;yxatdan o&apos;ting
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import AuthShell, { FormError } from "@/components/AuthShell";
+import { Spinner } from "@/components/LoadingScreen";
+import meeting from "@/public/images/meeting.webp";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,7 +23,7 @@ export default function RegisterPage() {
     setError("");
 
     if (!email.trim() || !password) {
-      setError("Email va passwordni kiriting.");
+      setError("Email va parolni kiriting.");
       return;
     }
 
@@ -42,59 +46,72 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#09090b] flex items-center justify-center px-6">
-      <div className="w-full max-w-md bg-zinc-900 rounded-2xl p-8 border border-zinc-800">
-        <h1 className="text-3xl font-bold text-white text-center">
-          Create Account
-        </h1>
+    <AuthShell
+      title="Hisob yaratish"
+      subtitle="Bir daqiqada ro'yxatdan o'ting va birinchi loyihangizni boshlang."
+      image={meeting}
+      imageAlt="Jamoa uchrashuvi"
+      headline="G'oyadan rejagacha — bir necha daqiqada."
+      points={[
+        "Claude AI asosidagi tahlil",
+        "O'zbek tilidagi hujjatlar",
+        "Karta talab qilinmaydi",
+      ]}
+    >
+      <FormError message={error} />
 
-        <p className="text-zinc-400 text-center mt-2">
-          Join BizPilot AI
-        </p>
-
-        {error && (
-          <div className="mt-6 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-4 text-sm">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleRegister} className="mt-8 space-y-4">
+      <form onSubmit={handleRegister} className="space-y-5">
+        <div>
+          <label htmlFor="email" className="mb-2 block text-sm text-zinc-400">
+            Email
+          </label>
           <input
+            id="email"
             type="email"
-            placeholder="Email"
+            placeholder="siz@example.com"
             autoComplete="email"
             disabled={loading}
-            className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 outline-none disabled:opacity-50"
+            className="field"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+        </div>
 
+        <div>
+          <label htmlFor="password" className="mb-2 block text-sm text-zinc-400">
+            Parol
+          </label>
           <input
+            id="password"
             type="password"
-            placeholder="Password"
+            placeholder="Kamida 6 ta belgi"
             autoComplete="new-password"
             disabled={loading}
-            className="w-full p-3 rounded-lg bg-zinc-800 text-white border border-zinc-700 outline-none disabled:opacity-50"
+            className="field"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+        </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-lg font-semibold disabled:opacity-60"
-          >
-            {loading ? "Creating..." : "Create Account"}
-          </button>
-        </form>
+        <button type="submit" disabled={loading} className="btn-primary w-full py-3.5">
+          {loading ? (
+            <>
+              <Spinner className="size-4" /> Yaratilmoqda...
+            </>
+          ) : (
+            <>
+              Hisob yaratish <ArrowRight size={18} />
+            </>
+          )}
+        </button>
+      </form>
 
-        <p className="text-zinc-400 text-center mt-6">
-          Already have an account?{" "}
-          <Link href="/login" className="text-purple-500">
-            Login
-          </Link>
-        </p>
-      </div>
-    </main>
+      <p className="mt-8 text-center text-sm text-zinc-500">
+        Hisobingiz bormi?{" "}
+        <Link href="/login" className="font-medium text-brand-400 hover:text-brand-300">
+          Kirish
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

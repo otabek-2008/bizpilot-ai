@@ -7,6 +7,19 @@ import { supabase } from "@/lib/supabase";
 import type { Project } from "@/types";
 import { generateWithAI } from "@/services/generator";
 import { saveDocument, getDocument } from "@/services/projects";
+import {
+  ArrowRight,
+  Briefcase,
+  Coins,
+  Lightbulb,
+  MapPin,
+  Megaphone,
+  Sparkles,
+  Users,
+  Wallet,
+} from "lucide-react";
+import LoadingScreen, { Spinner } from "@/components/LoadingScreen";
+import { PageContainer } from "@/components/PlanSection";
 
 export default function ProjectPage() {
   const params = useParams();
@@ -105,14 +118,7 @@ export default function ProjectPage() {
   }
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-[#0f0f0f] text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-zinc-700 border-t-purple-500 rounded-full animate-spin mx-auto" />
-          <p className="text-zinc-400 mt-4">Loading...</p>
-        </div>
-      </main>
-    );
+    return <LoadingScreen />;
   }
 
   if (!project) {
@@ -122,106 +128,124 @@ export default function ProjectPage() {
   const base = `/dashboard/project/${projectId}`;
 
   const summaryCards = [
-    { href: `${base}/biznes-plan`, icon: "📋", title: "Business Plan", desc: "AI-powered business strategy", ready: hasDocs },
-    { href: `${base}/marketing`, icon: "📣", title: "Marketing", desc: "Marketing strategy and ideas", ready: hasDocs },
-    { href: `${base}/finance`, icon: "💰", title: "Financial Plan", desc: "Revenue and cost planning", ready: hasDocs },
+    { href: `${base}/biznes-plan`, icon: Briefcase, title: "Biznes reja", desc: "Strategiya, bozor va SWOT tahlili", accent: "from-brand-500/30" },
+    { href: `${base}/marketing`, icon: Megaphone, title: "Marketing", desc: "Kanallar, kampaniyalar va KPI", accent: "from-fuchsia-500/25" },
+    { href: `${base}/finance`, icon: Wallet, title: "Moliyaviy reja", desc: "Xarajatlar va 3 yillik prognoz", accent: "from-emerald-500/25" },
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-12">
-      <div className="mb-10">
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="text-zinc-400 hover:text-white text-sm mb-3"
-        >
-          ← Back to Dashboard
-        </button>
-        <h2 className="text-4xl font-bold">Build Your Business 🚀</h2>
-        <p className="text-zinc-400 mt-3">
+    <PageContainer>
+      <div className="animate-fade-up mb-10">
+        <p className="text-sm font-medium text-brand-400">Loyiha</p>
+        <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">{project.title}</h1>
+        <p className="mt-3 max-w-2xl text-zinc-400">
           BizPilot AI sizning biznes g&apos;oyangiz asosida biznes reja, marketing
           strategiyasi va moliyaviy reja yaratadi.
         </p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-        <h3 className="text-2xl font-bold mb-6">Tell us about your business</h3>
+      <div className="glass relative overflow-hidden rounded-3xl p-6 sm:p-8">
+        <div aria-hidden className="absolute -right-24 -top-24 size-72 rounded-full bg-brand-500/15 blur-3xl" />
 
-        <div className="space-y-6">
+        <div className="relative flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-xl bg-brand-500/15 text-brand-300">
+            <Lightbulb size={20} />
+          </span>
           <div>
-            <label className="block text-sm text-zinc-400 mb-2">Business Idea</label>
+            <h2 className="text-xl font-semibold">Biznesingiz haqida</h2>
+            <p className="text-sm text-zinc-500">Qanchalik batafsil yozsangiz, natija shunchalik aniq bo&apos;ladi.</p>
+          </div>
+        </div>
+
+        <div className="relative mt-8 space-y-6">
+          <div>
+            <label htmlFor="idea" className="mb-2 block text-sm text-zinc-400">Biznes g&apos;oya</label>
             <textarea
+              id="idea"
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               rows={6}
+              disabled={generating}
               placeholder="Masalan: Toshkentda kichik bizneslar uchun AI marketing xizmatini yaratmoqchiman..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-white outline-none focus:border-purple-500 resize-none"
+              className="field resize-none"
             />
           </div>
 
-          <div>
-            <label className="block text-sm text-zinc-400 mb-2">Target Audience</label>
-            <input
-              value={audience}
-              onChange={(e) => setAudience(e.target.value)}
-              placeholder="Masalan: 18-35 yoshdagi tadbirkorlar"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-white outline-none focus:border-purple-500"
-            />
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Budget</label>
-              <input
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                placeholder="Masalan: $5,000"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-white outline-none focus:border-purple-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Location</label>
-              <input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Masalan: Tashkent, Uzbekistan"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-white outline-none focus:border-purple-500"
-              />
-            </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {[
+              { id: "audience", label: "Maqsadli auditoriya", icon: Users, value: audience, set: setAudience, ph: "18-35 yoshli tadbirkorlar" },
+              { id: "budget", label: "Byudjet", icon: Coins, value: budget, set: setBudget, ph: "$5,000" },
+              { id: "location", label: "Joylashuv", icon: MapPin, value: location, set: setLocation, ph: "Toshkent, O'zbekiston" },
+            ].map(({ id, label, icon: Icon, value, set, ph }) => (
+              <div key={id}>
+                <label htmlFor={id} className="mb-2 block text-sm text-zinc-400">{label}</label>
+                <div className="relative">
+                  <Icon size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <input
+                    id={id}
+                    value={value}
+                    onChange={(e) => set(e.target.value)}
+                    disabled={generating}
+                    placeholder={ph}
+                    className="field !pl-10"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
           {error && (
-            <div className="bg-red-900/30 border border-red-700/50 text-red-300 rounded-xl p-4 text-sm">
+            <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
               {error}
             </div>
           )}
 
-          <button
-            onClick={generate}
-            disabled={generating}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed transition py-4 rounded-xl font-semibold text-lg"
-          >
-            {generating ? "⏳ AI hujjatlarni tayyorlamoqda (1-2 daqiqa)..." : "✨ Generate Business Plan"}
+          <button onClick={generate} disabled={generating} className="btn-primary w-full py-4 text-base">
+            {generating ? (
+              <>
+                <Spinner className="size-5" /> AI hujjatlarni tayyorlamoqda (1–2 daqiqa)...
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} /> {hasDocs ? "Hujjatlarni qayta yaratish" : "Biznes reja yaratish"}
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      <div className="mt-8 grid md:grid-cols-3 gap-4">
-        {summaryCards.map((card) => (
-          <Link
-            key={card.title}
-            href={card.href}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-purple-500 transition"
-          >
-            <div className="text-2xl mb-2">{card.icon}</div>
-            <h4 className="font-semibold text-white">{card.title}</h4>
-            <p className="text-sm text-zinc-500 mt-1">{card.desc}</p>
-            <div className="mt-3 text-sm text-purple-400">
-              {card.ready ? `${card.title}ni ko'rish →` : "Avval biznes rejani yarating"}
-            </div>
-          </Link>
-        ))}
+      <div className="mt-8 grid gap-4 md:grid-cols-3">
+        {summaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <Link
+              key={card.title}
+              href={card.href}
+              className="glass glass-hover group relative overflow-hidden rounded-3xl p-6"
+            >
+              <div aria-hidden className={`absolute -right-12 -top-12 size-36 rounded-full bg-gradient-to-br ${card.accent} to-transparent blur-2xl`} />
+              <div className="relative flex items-center justify-between">
+                <span className="grid size-11 place-items-center rounded-xl border border-white/10 bg-white/5 text-brand-300">
+                  <Icon size={20} />
+                </span>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                    hasDocs ? "bg-emerald-500/15 text-emerald-400" : "bg-white/5 text-zinc-500"
+                  }`}
+                >
+                  {hasDocs ? "Tayyor" : "Kutilmoqda"}
+                </span>
+              </div>
+              <h3 className="relative mt-5 font-semibold text-white">{card.title}</h3>
+              <p className="relative mt-1 text-sm text-zinc-500">{card.desc}</p>
+              <div className="relative mt-4 flex items-center gap-1 text-sm text-brand-300">
+                {hasDocs ? "Ko'rish" : "Avval biznes rejani yarating"}
+                {hasDocs && <ArrowRight size={15} className="transition group-hover:translate-x-1" />}
+              </div>
+            </Link>
+          );
+        })}
       </div>
-    </div>
+    </PageContainer>
   );
 }

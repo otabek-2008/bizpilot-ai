@@ -1,13 +1,24 @@
 "use client";
 
+import {
+  BarChart3,
+  Fingerprint,
+  Gem,
+  Megaphone,
+  Radio,
+  Rocket,
+  Telescope,
+  Users,
+} from "lucide-react";
 import GeneratePrompt from "@/components/GeneratePrompt";
-import { PageHeader, Section, BulletList } from "@/components/PlanSection";
+import LoadingScreen from "@/components/LoadingScreen";
+import { PageContainer, PageHeader, Section, BulletList } from "@/components/PlanSection";
 import { useProjectWorkspace } from "@/hooks/useProjectWorkspace";
 
 const priorityColor: Record<string, string> = {
-  high: "bg-emerald-500/15 text-emerald-400",
-  medium: "bg-amber-500/15 text-amber-400",
-  low: "bg-zinc-500/15 text-zinc-400",
+  high: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30",
+  medium: "bg-amber-500/15 text-amber-400 ring-amber-500/30",
+  low: "bg-zinc-500/15 text-zinc-400 ring-zinc-500/30",
 };
 
 const priorityLabel: Record<string, string> = {
@@ -20,92 +31,88 @@ export default function MarketingPage() {
   const { projectId, project, documents, loading } = useProjectWorkspace();
 
   if (loading) {
-    return (
-      <div className="p-8 text-white">
-        <p className="text-zinc-400">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!project || !documents) {
     return (
-      <div className="p-8 text-white">
-        <PageHeader title="Marketing Strategy" subtitle="AI tomonidan yaratilgan marketing strategiyasi" />
+      <PageContainer>
+        <PageHeader icon={Megaphone} title="Marketing strategiyasi" subtitle="AI tomonidan yaratilgan marketing strategiyasi" />
         <GeneratePrompt projectId={projectId} />
-      </div>
+      </PageContainer>
     );
   }
 
   const m = documents.marketing;
 
   return (
-    <div className="p-8 text-white max-w-4xl">
+    <PageContainer>
       <PageHeader
-        title="Marketing Strategy"
+        icon={Megaphone}
+        title="Marketing strategiyasi"
         subtitle={`${project.title} uchun AI tomonidan yaratilgan marketing strategiyasi`}
       />
 
-      <div className="space-y-6">
-        <Section title="Umumiy strategiya">
+      <div className="space-y-5">
+        <Section title="Umumiy strategiya" icon={Telescope}>
           <p>{m.overview}</p>
         </Section>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <Section title="Maqsadli auditoriya">
+        <div className="grid gap-5 md:grid-cols-2">
+          <Section title="Maqsadli auditoriya" icon={Users}>
             <p>{m.targetAudience}</p>
           </Section>
-          <Section title="Farqlovchi ustunlik">
+          <Section title="Farqlovchi ustunlik" icon={Gem}>
             <p>{m.uniqueValue}</p>
           </Section>
         </div>
 
-        <Section title="Marketing kanallari">
-          <div className="space-y-3">
+        <Section title="Marketing kanallari" icon={Radio}>
+          <div className="grid gap-3 md:grid-cols-2">
             {m.channels.map((c, i) => (
-              <div
-                key={i}
-                className="flex items-start justify-between gap-4 border-b border-zinc-800 pb-3 last:border-0"
-              >
-                <div>
+              <div key={i} className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                <div className="flex items-start justify-between gap-3">
                   <div className="font-semibold text-white">{c.name}</div>
-                  <p className="text-zinc-400 text-sm mt-1">{c.description}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <span
-                    className={`inline-block px-2 py-1 rounded text-xs font-semibold ${priorityColor[c.priority]}`}
-                  >
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${priorityColor[c.priority]}`}>
                     {priorityLabel[c.priority]}
                   </span>
-                  <div className="text-xs text-zinc-500 mt-1">Xarajat: {c.cost}</div>
+                </div>
+                <p className="mt-2 text-sm text-zinc-400">{c.description}</p>
+                <div className="mt-3 text-xs text-zinc-500">
+                  Xarajat: <span className="font-mono text-zinc-300">{c.cost}</span>
                 </div>
               </div>
             ))}
           </div>
         </Section>
 
-        <Section title="Kampaniyalar">
-          <div className="grid md:grid-cols-2 gap-4">
+        <Section title="Kampaniyalar" icon={Rocket}>
+          <div className="grid gap-3 md:grid-cols-2">
             {m.campaigns.map((c, i) => (
-              <div key={i} className="bg-zinc-800/60 rounded-xl p-4">
-                <div className="flex items-center justify-between">
+              <div key={i} className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-brand-500/10 to-transparent p-5">
+                <div className="flex items-center justify-between gap-3">
                   <h4 className="font-semibold text-white">{c.name}</h4>
-                  <span className="text-xs text-purple-400">{c.duration}</span>
+                  <span className="shrink-0 rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs text-brand-300">
+                    {c.duration}
+                  </span>
                 </div>
-                <p className="text-zinc-400 text-sm mt-2">{c.description}</p>
-                <div className="text-xs text-zinc-500 mt-3">Byudjet: {c.budget}</div>
+                <p className="mt-2 text-sm text-zinc-400">{c.description}</p>
+                <div className="mt-4 text-xs text-zinc-500">
+                  Byudjet: <span className="font-mono text-zinc-300">{c.budget}</span>
+                </div>
               </div>
             ))}
           </div>
         </Section>
 
-        <Section title="Brend ko'rsatmalari">
+        <Section title="Brend ko'rsatmalari" icon={Fingerprint}>
           <p>{m.brandGuidelines}</p>
         </Section>
 
-        <Section title="Muvaffaqiyat ko'rsatkichlari (KPI)">
+        <Section title="Muvaffaqiyat ko'rsatkichlari (KPI)" icon={BarChart3}>
           <BulletList items={m.kpis} />
         </Section>
       </div>
-    </div>
+    </PageContainer>
   );
 }
