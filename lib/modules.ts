@@ -1,13 +1,17 @@
 import {
+  BotMessageSquare,
   Briefcase,
   CaseSensitive,
   FileStack,
+  FileUser,
   Headset,
   Languages,
   LayoutDashboard,
   MessagesSquare,
   Presentation,
   ScanFace,
+  ScrollText,
+  SpellCheck,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -28,9 +32,13 @@ export type ModuleId =
   | "dashboard"
   | "case"
   | "translit"
+  | "spellcheck"
   | "photo"
   | "documents"
   | "business"
+  | "assistant"
+  | "essay"
+  | "cv"
   | "presentation"
   | "chat"
   | "profile"
@@ -83,6 +91,18 @@ export const modules: Record<ModuleId, AppModule> = {
     to: "#14b8a6",
     enter: "flip",
   },
+  spellcheck: {
+    id: "spellcheck",
+    title: "Imlo tekshiruvchi",
+    short: "Imlo",
+    desc: "O'zbek, rus va ingliz matnlaridagi imlo, grammatika va tinish xatolarini tuzatish",
+    href: "/dashboard/spellcheck",
+    icon: SpellCheck,
+    from: "#22c55e",
+    to: "#84cc16",
+    enter: "blur",
+    badge: "AI",
+  },
   photo: {
     id: "photo",
     title: "3×4 rasm",
@@ -116,6 +136,41 @@ export const modules: Record<ModuleId, AppModule> = {
     to: "#7c3aed",
     enter: "rise",
     badge: "AI",
+  },
+  assistant: {
+    id: "assistant",
+    title: "AI yordamchi",
+    short: "AI yordamchi",
+    desc: "Fanlar bo'yicha savol bering: tushuntirish, masala yechish, tarjima",
+    href: "/dashboard/assistant",
+    icon: BotMessageSquare,
+    from: "#3b82f6",
+    to: "#8b5cf6",
+    enter: "pop",
+    badge: "AI",
+  },
+  essay: {
+    id: "essay",
+    title: "Referat va esse",
+    short: "Referat",
+    desc: "Mavzu bo'yicha referat, esse, mustaqil ish yoki kurs ishi — tayyor .docx",
+    href: "/dashboard/essay",
+    icon: ScrollText,
+    from: "#f97316",
+    to: "#ef4444",
+    enter: "drop",
+    badge: "AI",
+  },
+  cv: {
+    id: "cv",
+    title: "CV / Rezyume",
+    short: "CV",
+    desc: "Chiroyli shablonlar asosida rezyume tuzing va PDF qilib yuklab oling",
+    href: "/dashboard/cv",
+    icon: FileUser,
+    from: "#0ea5e9",
+    to: "#14b8a6",
+    enter: "slide",
   },
   presentation: {
     id: "presentation",
@@ -166,20 +221,24 @@ export const modules: Record<ModuleId, AppModule> = {
 
 export const navGroups: { label?: string; items: ModuleId[] }[] = [
   { items: ["dashboard"] },
-  { label: "Matn vositalari", items: ["case", "translit"] },
+  { label: "Matn vositalari", items: ["case", "translit", "spellcheck"] },
   { label: "Rasm vositalari", items: ["photo"] },
-  { label: "Hujjat vositalari", items: ["documents"] },
-  { label: "AI vositalar", items: ["business", "presentation"] },
+  { label: "Hujjat vositalari", items: ["documents", "cv"] },
+  { label: "AI vositalar", items: ["assistant", "essay", "business", "presentation"] },
   { label: "Yordam", items: ["chat", "contact"] },
   { label: "Hisob", items: ["profile"] },
 ];
 
 // Bosh sahifadagi vosita kartalari tartibi.
 export const toolIds: ModuleId[] = [
+  "assistant",
+  "essay",
+  "spellcheck",
   "case",
   "translit",
   "photo",
   "documents",
+  "cv",
   "business",
   "presentation",
 ];
