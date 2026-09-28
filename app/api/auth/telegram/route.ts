@@ -1,6 +1,6 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { telegramEmail, verifyTelegram } from "@/lib/telegram";
 
 // Telegram Login ma'lumotlarini tekshiradi va Supabase sessiyasi uchun bir martalik token qaytaradi.
 // Kerakli env: TELEGRAM_BOT_TOKEN, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL.
@@ -15,20 +15,7 @@ const TelegramAuth = z.object({
   hash: z.string().regex(/^[a-f0-9]{64}$/),
 });
 
-const MAX_AGE_SECONDS = 24 * 60 * 60;
-
-function verify(data: Record<string, unknown>, botToken: string): boolean {
-  const { hash, ...fields } = data;
-  const checkString = Object.keys(fields)
-    .filter((k) => fields[k] !== undefined && fields[k] !== null)
-    .sort()
-    .map((k) => `${k}=${fields[k]}`)
-    .join("\n");
-  const secret = createHash("sha256").update(botToken).digest();
-  const expected = createHmac("sha256", secret).update(checkString).digest();
-  const given = Buffer.from(String(hash), "hex");
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
+const MAX_AGE_SECONDS = 60 * 60;
 
 export async function POST(request: Request) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -50,11 +37,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Telegram ma'lumotlari noto'g'ri." }, { status: 400 });
   }
 
-  // Imzo Telegram yuborgan asl maydonlar bo'yicha tekshiriladi
+  // Imzo Telegram yuborgan barcha maydonlar bo'yicha tekshiriladi (hujjatdagi talab)
   const original = Object.fromEntries(
-    Object.entries(raw).filter(([k]) => k in TelegramAuth.shape),
+    Object.entries(raw).filter(([, v]) => typeof v === "string" || typeof v === "number"),
   );
-  if (!verify(original, botToken)) {
+  if (!verifyTelegram(original, botToken)) {
     return Response.json({ error: "Telegram imzosi tasdiqlanmadi." }, { status: 401 });
   }
   if (Date.now() / 1000 - parsed.data.auth_date > MAX_AGE_SECONDS) {
@@ -65,12 +52,13 @@ export async function POST(request: Request) {
   const admin = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  // Telegram email bermaydi — ichki, hech qachon xat yuborilmaydigan manzil ishlatamiz.
-  const email = `tg${tg.id}@telegram.campusai.app`;
+  const email = telegramEmail(tg.id);
 
   const { error: createError } = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
+    // app_metadata'ni faqat service role yoza oladi — hisob egaligini shu orqali tekshiramiz
+    app_metadata: { telegram_id: tg.id },
     user_metadata: {
       full_name: [tg.first_name, tg.last_name].filter(Boolean).join(" "),
       avatar_url: tg.photo_url ?? "",
@@ -87,6 +75,11 @@ export async function POST(request: Request) {
   if (error || !data.properties?.hashed_token) {
     console.error("Telegram generateLink error:", error);
     return Response.json({ error: "Sessiya yaratib bo'lmadi." }, { status: 500 });
+  }
+  // Shu emailni kimdir boshqa usulda (masalan parol bilan) oldindan egallagan bo'lsa, kiritmaymiz
+  if (data.user.app_metadata?.telegram_id !== tg.id) {
+    console.error("Telegram email is owned by a non-Telegram account:", data.user.id);
+    return Response.json({ error: "Bu Telegram hisobini ulab bo'lmadi. Admin bilan bog'laning." }, { status: 409 });
   }
 
   return Response.json({ token_hash: data.properties.hashed_token });
