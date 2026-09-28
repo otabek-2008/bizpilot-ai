@@ -22,3 +22,13 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: SMS_HOOK_SECRET
+        sync: false
+      - key: ESKIZ_EMAIL
+        sync: false
+      - key: ESKIZ_PASSWORD
+        sync: false
+      - key: ESKIZ_FROM
+        sync: false
+      - key: ESKIZ_TEMPLATE
+        sync: false
