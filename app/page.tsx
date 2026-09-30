@@ -9,7 +9,7 @@ import city from "@/public/images/city.webp";
 import meeting from "@/public/images/meeting.webp";
 
 const steps = [
-  { title: "Ro'yxatdan o'ting", desc: "Google, Apple (iCloud), Telegram yoki email bilan — bir necha soniyada." },
+  { title: "Ro'yxatdan o'ting", desc: "Google, Telegram yoki email bilan — bir necha soniyada." },
   { title: "Vositani tanlang", desc: "Matn, rasm yoki hujjat — har bir vosita alohida bo'limda." },
   { title: "Natijani oling", desc: "Nusxalang yoki yuklab oling. Fayllar brauzeringizdan chiqmaydi." },
 ];

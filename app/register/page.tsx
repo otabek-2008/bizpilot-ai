@@ -12,7 +12,7 @@ export default function RegisterPage() {
       imageAlt="Talabalar jamoasi"
       headline="O'qish uchun aqlli vositalar."
       points={[
-        "Google, Apple, Telegram yoki email orqali",
+        "Google, Telegram yoki email orqali",
         "Fayllaringiz brauzeringizdan chiqmaydi",
         "O'zbek tilida, talabalar uchun",
       ]}

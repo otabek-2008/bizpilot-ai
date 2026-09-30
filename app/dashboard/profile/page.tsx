@@ -15,7 +15,6 @@ const COURSES = ["1-kurs", "2-kurs", "3-kurs", "4-kurs", "5-kurs", "Magistratura
 const PROVIDERS: Record<string, string> = {
   email: "Email",
   google: "Google",
-  apple: "Apple",
 };
 
 /** Rasmni kvadrat qilib kesadi va kichraytiradi. */

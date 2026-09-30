@@ -56,8 +56,8 @@ export const faqs: Faq[] = [
   },
   {
     q: "Qanday usullar bilan kirish mumkin?",
-    a: "Google, Apple, Telegram yoki email va parol orqali kirish mumkin.",
-    keywords: ["kirish", "login", "google", "apple", "icloud", "telegram", "ro'yxat", "royxat"],
+    a: "Google, Telegram yoki email va parol orqali kirish mumkin.",
+    keywords: ["kirish", "login", "google", "telegram", "ro'yxat", "royxat"],
   },
 ];
 

@@ -6,10 +6,10 @@ import { ArrowRight, Mail } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { FormError } from "@/components/AuthShell";
 import { Spinner } from "@/components/LoadingScreen";
-import { AppleIcon, GoogleIcon, TelegramIcon } from "@/components/auth/BrandIcons";
+import { GoogleIcon, TelegramIcon } from "@/components/auth/BrandIcons";
 
 type Mode = "login" | "register";
-type Providers = { google: boolean; apple: boolean; email: boolean };
+type Providers = { google: boolean; email: boolean };
 
 type TelegramUser = Record<string, string | number>;
 declare global {
@@ -56,14 +56,13 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
       .then((s) =>
         setProviders({
           google: !!s.external?.google,
-          apple: !!s.external?.apple,
           email: s.external?.email !== false,
         }),
       )
-      .catch(() => setProviders({ google: true, apple: true, email: true }));
+      .catch(() => setProviders({ google: true, email: true }));
   }, []);
 
-  async function oauth(provider: "google" | "apple") {
+  async function oauth(provider: "google") {
     setError("");
     setBusy(provider);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -112,11 +111,9 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
   const buttons = providers
     ? [
         providers.google && <ProviderButton key="google" label="Google" icon={<GoogleIcon />} onClick={() => oauth("google")} loading={loading("google")} disabled={!!busy} />,
-        providers.apple && <ProviderButton key="apple" label="Apple" icon={<AppleIcon />} onClick={() => oauth("apple")} loading={loading("apple")} disabled={!!busy} />,
         TELEGRAM_BOT_ID && <ProviderButton key="telegram" label="Telegram" icon={<TelegramIcon />} onClick={telegram} loading={loading("telegram")} disabled={!!busy} />,
       ].filter(Boolean)
     : [];
-  const cols = ["", "grid-cols-1", "grid-cols-2", "grid-cols-1 sm:grid-cols-3"][buttons.length];
 
   return (
     <div>
@@ -131,7 +128,7 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
 
       {buttons.length > 0 && (
         <>
-          <div className={`grid gap-3 ${cols}`}>{buttons}</div>
+          <div className={`grid gap-3 ${buttons.length > 1 ? "grid-cols-2" : ""}`}>{buttons}</div>
 
           <div className="my-7 flex items-center gap-4 text-xs uppercase tracking-wider text-zinc-600">
             <span className="h-px flex-1 bg-white/10" /> yoki email bilan <span className="h-px flex-1 bg-white/10" />
