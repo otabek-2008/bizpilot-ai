@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Script from "next/script";
-import { ArrowLeft, ArrowRight, Mail, Phone } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { FormError } from "@/components/AuthShell";
 import { Spinner } from "@/components/LoadingScreen";
 import { AppleIcon, GoogleIcon, TelegramIcon } from "@/components/auth/BrandIcons";
 
 type Mode = "login" | "register";
-type View = "main" | "phone";
-type Providers = { google: boolean; apple: boolean; phone: boolean; email: boolean };
+type Providers = { google: boolean; apple: boolean; email: boolean };
 
 type TelegramUser = Record<string, string | number>;
 declare global {
@@ -43,7 +42,6 @@ function friendly(message: string): string {
 }
 
 export default function AuthMethods({ mode }: { mode: Mode }) {
-  const [view, setView] = useState<View>("main");
   const [providers, setProviders] = useState<Providers | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -59,11 +57,10 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
         setProviders({
           google: !!s.external?.google,
           apple: !!s.external?.apple,
-          phone: !!s.external?.phone,
           email: s.external?.email !== false,
         }),
       )
-      .catch(() => setProviders({ google: true, apple: true, phone: true, email: true }));
+      .catch(() => setProviders({ google: true, apple: true, email: true }));
   }, []);
 
   async function oauth(provider: "google" | "apple") {
@@ -111,10 +108,6 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
 
   const loading = (id: string) => busy === id;
 
-  if (view === "phone") {
-    return <PhoneFlow onBack={() => setView("main")} />;
-  }
-
   const off = (p: keyof Providers) => providers !== null && !providers[p];
 
   return (
@@ -128,11 +121,10 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <ProviderButton label="Google" icon={<GoogleIcon />} onClick={() => oauth("google")} loading={loading("google")} disabled={!!busy || off("google")} off={off("google")} />
         <ProviderButton label="Apple" icon={<AppleIcon />} onClick={() => oauth("apple")} loading={loading("apple")} disabled={!!busy || off("apple")} off={off("apple")} />
         <ProviderButton label="Telegram" icon={<TelegramIcon />} onClick={telegram} loading={loading("telegram")} disabled={!!busy || !TELEGRAM_BOT_ID} off={!TELEGRAM_BOT_ID} />
-        <ProviderButton label="Telefon" icon={<Phone size={19} className="text-emerald-300" />} onClick={() => setView("phone")} disabled={!!busy || off("phone")} off={off("phone")} />
       </div>
 
       <div className="my-7 flex items-center gap-4 text-xs uppercase tracking-wider text-zinc-600">
@@ -251,107 +243,5 @@ function EmailForm({
         {!loading && <ArrowRight size={18} />}
       </button>
     </form>
-  );
-}
-
-function PhoneFlow({ onBack }: { onBack: () => void }) {
-  const [phone, setPhone] = useState("+998 ");
-  const [code, setCode] = useState("");
-  const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [cooldown, setCooldown] = useState(0);
-
-  const normalized = "+" + phone.replace(/\D/g, "");
-
-  useEffect(() => {
-    if (!cooldown) return;
-    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldown]);
-
-  async function sendCode(e?: React.FormEvent) {
-    e?.preventDefault();
-    setError("");
-    if (normalized.length < 12) {
-      setError("Telefon raqamini to'liq kiriting.");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({ phone: normalized });
-    setLoading(false);
-    if (error) {
-      setError(friendly(error.message));
-      return;
-    }
-    setSent(true);
-    setCooldown(60);
-  }
-
-  async function verify(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    const { error } = await supabase.auth.verifyOtp({ phone: normalized, token: code.trim(), type: "sms" });
-    setLoading(false);
-    if (error) {
-      setError(friendly(error.message));
-      return;
-    }
-    goDashboard();
-  }
-
-  return (
-    <div className="enter-slide">
-      <button onClick={onBack} className="mb-6 flex items-center gap-1.5 text-sm text-zinc-400 transition hover:text-white">
-        <ArrowLeft size={16} /> Boshqa usullar
-      </button>
-      <FormError message={error} />
-      {!sent ? (
-        <form onSubmit={sendCode} className="space-y-4">
-          <label htmlFor="phone" className="block text-sm text-zinc-400">Telefon raqamingiz</label>
-          <input
-            id="phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="field text-lg tracking-wide"
-          />
-          <button type="submit" disabled={loading} className="btn-primary w-full py-3.5">
-            {loading && <Spinner className="size-4" />} SMS kod yuborish
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={verify} className="space-y-4">
-          <p className="text-sm text-zinc-400">
-            <span className="text-white">{normalized}</span> raqamiga 6 xonali kod yuborildi.
-          </p>
-          <input
-            aria-label="SMS kod"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            placeholder="••••••"
-            className="field text-center font-mono text-2xl tracking-[0.6em]"
-            autoFocus
-          />
-          <button type="submit" disabled={loading || code.length < 6} className="btn-primary w-full py-3.5">
-            {loading && <Spinner className="size-4" />} Tasdiqlash
-          </button>
-          <button
-            type="button"
-            disabled={!!cooldown || loading}
-            onClick={() => sendCode()}
-            className="w-full text-center text-sm text-zinc-400 transition hover:text-white disabled:opacity-50"
-          >
-            {cooldown ? `Qayta yuborish (${cooldown}s)` : "Kodni qayta yuborish"}
-          </button>
-        </form>
-      )}
-    </div>
   );
 }
