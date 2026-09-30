@@ -22,3 +22,8 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # SEO: o'z domeningiz bo'lsa (masalan https://campusai.uz) va Google Search Console tasdiqlash kodi
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+        sync: false

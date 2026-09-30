@@ -14,9 +14,37 @@ const steps = [
   { title: "Natijani oling", desc: "Nusxalang yoki yuklab oling. Fayllar brauzeringizdan chiqmaydi." },
 ];
 
+// Google'ga sayt nomi va nima ekanini aytadi (qidiruvda "CampusAI" nomi bilan chiqishi uchun)
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      name: site.name,
+      alternateName: ["Campus AI", "campusai"],
+      url: site.url,
+      inLanguage: "uz",
+    },
+    {
+      "@type": "WebApplication",
+      name: site.name,
+      url: site.url,
+      applicationCategory: "EducationalApplication",
+      operatingSystem: "Web",
+      inLanguage: "uz",
+      description: "O'zbekistondagi talabalar uchun AI yordamchi, referat, imlo tekshiruvchi, CV, Lotin ↔ Kirill va hujjat konvertori.",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "UZS" },
+    },
+  ],
+};
+
 export default function HomePage() {
   return (
     <main className="relative overflow-hidden bg-ink text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       {/* NAV */}
       <header className="fixed inset-x-0 top-0 z-50 px-4 sm:px-6">
         <div className="glass mx-auto mt-4 flex max-w-6xl items-center justify-between rounded-2xl px-4 py-2.5 sm:px-5">

@@ -1,7 +1,14 @@
 import Link from "next/link";
 import AuthShell from "@/components/AuthShell";
 import AuthMethods from "@/components/auth/AuthMethods";
+import type { Metadata } from "next";
 import city from "@/public/images/city.webp";
+
+export const metadata: Metadata = {
+  title: "Kirish",
+  description: "CampusAI hisobingizga Google, Telegram yoki email orqali kiring.",
+  alternates: { canonical: "/login" },
+};
 
 export default function LoginPage() {
   return (

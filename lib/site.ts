@@ -2,6 +2,8 @@
 export const site = {
   name: "CampusAI",
   tagline: "Talabalar uchun aqlli vositalar to'plami",
+  // Saytning asosiy manzili (sitemap, canonical, ijtimoiy tarmoq rasmlari uchun). O'z domeningiz ulansa, env'da almashtiring.
+  url: (process.env.NEXT_PUBLIC_SITE_URL || "https://bizpilot-ai-upl1.onrender.com").replace(/\/$/, ""),
   adminEmail: "solijonovotabek886@gmail.com",
   // Telegram username (@ belgisisiz). Bo'sh bo'lsa, Telegram havolasi ko'rsatilmaydi.
   adminTelegram: process.env.NEXT_PUBLIC_ADMIN_TELEGRAM ?? "",
