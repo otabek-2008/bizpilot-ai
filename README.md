@@ -35,7 +35,6 @@ npm test                     # translit va harf registri testlari
    (`https://.../dashboard`) qo'shing.
 3. **Auth → Providers**:
    - **Google** — Google Cloud'da OAuth client yarating, Client ID/Secret'ni kiriting.
-   - **Apple** — Apple Developer'da Services ID va kalit yarating (pullik Apple Developer hisobi kerak).
    Yoqilmagan provayderlar kirish sahifasida avtomatik "tez orada" bo'lib ko'rinadi.
 4. **Telegram** — @BotFather'da bot yarating, `/setdomain` bilan domenni ulang, keyin env'ga
    `NEXT_PUBLIC_TELEGRAM_BOT_ID`, `TELEGRAM_BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` qo'shing.
