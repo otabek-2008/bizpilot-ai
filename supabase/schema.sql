@@ -110,3 +110,9 @@ drop policy if exists "Users delete own avatar" on storage.objects;
 create policy "Users delete own avatar"
   on storage.objects for delete
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Bu loyihada SQL orqali yaratilgan jadvallar Data API'ga avtomatik ochilmaydi (aks holda PGRST205).
+grant select, insert on public.projects to authenticated;
+grant select, insert, update on public.project_documents to authenticated;
+grant select, insert on public.support_messages to authenticated;
+notify pgrst, 'reload schema';
