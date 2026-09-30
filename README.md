@@ -35,7 +35,10 @@ npm test                     # translit va harf registri testlari
    (`https://.../dashboard`) qo'shing.
 3. **Auth → Providers**:
    - **Google** — Google Cloud'da OAuth client yarating, Client ID/Secret'ni kiriting.
-   Yoqilmagan provayderlar kirish sahifasida avtomatik "tez orada" bo'lib ko'rinadi.
+   - **Apple (iCloud)** — Apple Developer'da App ID, Services ID va "Sign in with Apple" kaliti (.p8) yarating
+     (pullik Apple Developer hisobi kerak). Supabase'ga kiritiladigan secret key:
+     `node scripts/apple-secret.mjs <TEAM_ID> <KEY_ID> <SERVICES_ID> <AuthKey.p8>` — u 6 oy amal qiladi, keyin qayta yarating.
+   Yoqilmagan provayderlar kirish sahifasida ko'rsatilmaydi.
 4. **Telegram** — @BotFather'da bot yarating, `/setdomain` bilan domenni ulang, keyin env'ga
    `NEXT_PUBLIC_TELEGRAM_BOT_ID`, `TELEGRAM_BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` qo'shing.
    Imzo serverda (`app/api/auth/telegram`) tekshiriladi.

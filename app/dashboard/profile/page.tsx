@@ -16,7 +16,6 @@ const PROVIDERS: Record<string, string> = {
   email: "Email",
   google: "Google",
   apple: "Apple",
-  phone: "Telefon",
 };
 
 /** Rasmni kvadrat qilib kesadi va kichraytiradi. */
