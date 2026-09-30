@@ -46,7 +46,7 @@ export default function ContactPage() {
       <ModuleHeader module={modules.contact} />
 
       <div className="stagger grid gap-4 sm:grid-cols-2">
-        {telegramUrl ? (
+        {telegramUrl && (
           <a href={telegramUrl} target="_blank" rel="noreferrer" className="glass lift group flex items-center gap-4 rounded-3xl p-5" style={{ "--accent": "#0ea5e9" } as React.CSSProperties}>
             <span className="lift-icon grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600">
               <Send size={20} />
@@ -56,16 +56,6 @@ export default function ContactPage() {
               <p className="text-sm text-zinc-400">@{site.adminTelegram.replace(/^@/, "")}</p>
             </div>
           </a>
-        ) : (
-          <div className="glass flex items-center gap-4 rounded-3xl p-5 opacity-70">
-            <span className="grid size-12 place-items-center rounded-2xl bg-white/5">
-              <Send size={20} />
-            </span>
-            <div>
-              <p className="font-medium">Telegram</p>
-              <p className="text-sm text-zinc-500">Tez orada</p>
-            </div>
-          </div>
         )}
         <a href={mailtoUrl()} className="glass lift group flex items-center gap-4 rounded-3xl p-5">
           <span className="accent-gradient lift-icon grid size-12 place-items-center rounded-2xl">

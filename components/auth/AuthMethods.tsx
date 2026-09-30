@@ -108,7 +108,15 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
 
   const loading = (id: string) => busy === id;
 
-  const off = (p: keyof Providers) => providers !== null && !providers[p];
+  // Sozlanmagan usullar ko'rsatilmaydi
+  const buttons = providers
+    ? [
+        providers.google && <ProviderButton key="google" label="Google" icon={<GoogleIcon />} onClick={() => oauth("google")} loading={loading("google")} disabled={!!busy} />,
+        providers.apple && <ProviderButton key="apple" label="Apple" icon={<AppleIcon />} onClick={() => oauth("apple")} loading={loading("apple")} disabled={!!busy} />,
+        TELEGRAM_BOT_ID && <ProviderButton key="telegram" label="Telegram" icon={<TelegramIcon />} onClick={telegram} loading={loading("telegram")} disabled={!!busy} />,
+      ].filter(Boolean)
+    : [];
+  const cols = ["", "grid-cols-1", "grid-cols-2", "grid-cols-1 sm:grid-cols-3"][buttons.length];
 
   return (
     <div>
@@ -121,15 +129,15 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <ProviderButton label="Google" icon={<GoogleIcon />} onClick={() => oauth("google")} loading={loading("google")} disabled={!!busy || off("google")} off={off("google")} />
-        <ProviderButton label="Apple" icon={<AppleIcon />} onClick={() => oauth("apple")} loading={loading("apple")} disabled={!!busy || off("apple")} off={off("apple")} />
-        <ProviderButton label="Telegram" icon={<TelegramIcon />} onClick={telegram} loading={loading("telegram")} disabled={!!busy || !TELEGRAM_BOT_ID} off={!TELEGRAM_BOT_ID} />
-      </div>
+      {buttons.length > 0 && (
+        <>
+          <div className={`grid gap-3 ${cols}`}>{buttons}</div>
 
-      <div className="my-7 flex items-center gap-4 text-xs uppercase tracking-wider text-zinc-600">
-        <span className="h-px flex-1 bg-white/10" /> yoki email bilan <span className="h-px flex-1 bg-white/10" />
-      </div>
+          <div className="my-7 flex items-center gap-4 text-xs uppercase tracking-wider text-zinc-600">
+            <span className="h-px flex-1 bg-white/10" /> yoki email bilan <span className="h-px flex-1 bg-white/10" />
+          </div>
+        </>
+      )}
 
       <EmailForm mode={mode} disabled={!!busy} onError={setError} onInfo={setInfo} />
     </div>
@@ -142,26 +150,22 @@ function ProviderButton({
   onClick,
   loading,
   disabled,
-  off,
 }: {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
   loading?: boolean;
   disabled?: boolean;
-  off?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={off ? "Bu kirish usuli hali sozlanmagan" : undefined}
       className="group relative flex items-center justify-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.08] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45"
     >
       {loading ? <Spinner className="size-5" /> : <span className="transition group-hover:scale-110">{icon}</span>}
       {label}
-      {off && <span className="absolute -top-2 right-2 rounded-full bg-zinc-800 px-1.5 text-[10px] text-zinc-400">tez orada</span>}
     </button>
   );
 }
