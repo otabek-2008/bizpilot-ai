@@ -27,3 +27,8 @@ services:
         sync: false
       - key: NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
         sync: false
+      # Admin panel (/admin) uchun login va parol
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

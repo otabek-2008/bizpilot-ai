@@ -6,8 +6,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      // Kabinet va API sahifalari shaxsiy — qidiruvda chiqmasin
-      disallow: ["/dashboard", "/api/"],
+      // Kabinet, admin panel va API shaxsiy — qidiruvda chiqmasin
+      disallow: ["/dashboard", "/admin", "/api/"],
     },
     sitemap: `${site.url}/sitemap.xml`,
     host: site.url,

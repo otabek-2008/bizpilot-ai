@@ -116,3 +116,38 @@ grant select, insert on public.projects to authenticated;
 grant select, insert, update on public.project_documents to authenticated;
 grant select, insert on public.support_messages to authenticated;
 notify pgrst, 'reload schema';
+
+-- =====================================================================
+-- Admin panel
+-- =====================================================================
+
+-- Foydalanuvchilar faoliyati (qaysi vositadan qachon foydalangan).
+-- Foydalanuvchi faqat o'z nomidan yoza oladi; o'qish faqat admin panel (service role) orqali.
+create table if not exists public.activity_log (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  module text not null,
+  title text not null check (char_length(title) <= 300),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists activity_log_user_idx
+  on public.activity_log (user_id, created_at desc);
+create index if not exists activity_log_created_idx
+  on public.activity_log (created_at desc);
+
+alter table public.activity_log enable row level security;
+
+drop policy if exists "Users log own activity" on public.activity_log;
+create policy "Users log own activity"
+  on public.activity_log for insert
+  with check (auth.uid() = user_id);
+
+grant insert on public.activity_log to authenticated;
+
+-- Admin hujjatlari uchun yopiq bucket (faqat service role kira oladi).
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('admin-files', 'admin-files', false, 52428800)
+on conflict (id) do nothing;
+
+notify pgrst, 'reload schema';

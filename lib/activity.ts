@@ -3,8 +3,10 @@
 import { useSyncExternalStore } from "react";
 import type { ModuleId } from "@/lib/modules";
 import { formatShortDate } from "@/lib/date";
+import { supabase } from "@/lib/supabase";
 
-// Foydalanuvchi faoliyati brauzer localStorage'ida saqlanadi (har bir hisob uchun alohida).
+// Foydalanuvchi faoliyati brauzer localStorage'ida saqlanadi (har bir hisob uchun alohida)
+// va admin panel uchun Supabase'dagi activity_log jadvaliga ham yoziladi.
 export type ActivityItem = {
   id: string;
   module: ModuleId;
@@ -58,6 +60,13 @@ export function logActivity(module: ModuleId, title: string) {
   }
   cache = next;
   window.dispatchEvent(new Event(EVENT));
+
+  void supabase
+    .from("activity_log")
+    .insert({ user_id: currentUserId, module, title: title.slice(0, 300) })
+    .then(({ error }) => {
+      if (error) console.warn("Faoliyatni saqlab bo'lmadi:", error.message);
+    });
 }
 
 function subscribe(onChange: () => void) {
