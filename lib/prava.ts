@@ -3,9 +3,12 @@
 
 export const PRAVA_BUCKET = "prava-images";
 
-/** Imtihon formatlari: savollar soni, vaqt va o'tish normasi (kamida shuncha to'g'ri javob). */
+/**
+ * Imtihon formatlari: savollar soni, vaqt va o'tish normasi (kamida shuncha to'g'ri javob).
+ * 20 savollik — rasmiy YHXX nazariy imtihoni sharti (20 daqiqa, ko'pi bilan 2 ta xato); 50 savollik — kengaytirilgan mashq.
+ */
 export const EXAM_FORMATS = [
-  { size: 20, minutes: 25, minCorrect: 19 },
+  { size: 20, minutes: 20, minCorrect: 18 },
   { size: 50, minutes: 60, minCorrect: 46 },
 ] as const;
 

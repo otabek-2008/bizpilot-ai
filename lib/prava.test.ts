@@ -85,9 +85,9 @@ test("score va examPassed", () => {
   };
   const f20 = examFormat(20);
   const f50 = examFormat(50);
-  assert.equal(examPassed(...withWrong(20, 1), f20), true); // 19/20 — o'tdi
-  assert.equal(examPassed(...withWrong(20, 2), f20), false); // 18/20 — o'tmadi
-  assert.equal(examPassed(...withWrong(20, 0, 2), f20), false); // 2 ta javobsiz
+  assert.equal(examPassed(...withWrong(20, 2), f20), true); // 18/20 — o'tdi
+  assert.equal(examPassed(...withWrong(20, 3), f20), false); // 17/20 — o'tmadi
+  assert.equal(examPassed(...withWrong(20, 0, 3), f20), false); // 3 ta javobsiz — 17 ta to'g'ri
   assert.equal(examPassed(...withWrong(50, 4), f50), true); // 46/50 — o'tdi
   assert.equal(examPassed(...withWrong(50, 5), f50), false); // 45/50 — o'tmadi
   assert.equal(examPassed(...withWrong(20, 0), f50), false); // savollar soni formatga mos emas
