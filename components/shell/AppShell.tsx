@@ -9,12 +9,15 @@ import Backdrop from "@/components/Backdrop";
 import Sidebar from "@/components/shell/Sidebar";
 import Avatar from "@/components/shell/Avatar";
 import BootScreen from "@/components/shell/BootScreen";
+import ProfileGate from "@/components/profile/ProfileGate";
 import { moduleForPath } from "@/lib/modules";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider fallback={<BootScreen />}>
-      <Frame>{children}</Frame>
+      <ProfileGate fallback={<BootScreen />}>
+        <Frame>{children}</Frame>
+      </ProfileGate>
     </AuthProvider>
   );
 }

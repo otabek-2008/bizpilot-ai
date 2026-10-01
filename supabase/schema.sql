@@ -323,4 +323,135 @@ insert into storage.buckets (id, name, public, file_size_limit)
 values ('exam-files', 'exam-files', true, 52428800)
 on conflict (id) do nothing;
 
+
+-- ================= Profil (o'qish ma'lumotlari) va reyting =================
+-- Har bir foydalanuvchi ro'yxatdan o'tgach to'ldiradi: talaba / abituriyent / shaxsiy foydalanish.
+-- university_id — lib/universities.ts dagi id; ro'yxatda yo'q bo'lsa null va university_name qo'lda yoziladi.
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text check (char_length(full_name) <= 120),
+  avatar_url text check (char_length(avatar_url) <= 1000),
+  status text not null check (status in ('talaba', 'abituriyent', 'shaxsiy')),
+  university_id text check (char_length(university_id) <= 80),
+  university_name text check (char_length(university_name) <= 200),
+  faculty text check (char_length(faculty) <= 200),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint profiles_student_fields check (
+    status <> 'talaba' or (university_name is not null and faculty is not null)
+  )
+);
+
+create index if not exists profiles_university_idx on public.profiles (university_id);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "Users read own profile" on public.profiles;
+create policy "Users read own profile"
+  on public.profiles for select using (auth.uid() = id);
+
+drop policy if exists "Users add own profile" on public.profiles;
+create policy "Users add own profile"
+  on public.profiles for insert with check (auth.uid() = id);
+
+drop policy if exists "Users update own profile" on public.profiles;
+create policy "Users update own profile"
+  on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+
+grant select, insert, update on public.profiles to authenticated;
+
+-- Natija turlari o'zgarsa "create or replace" ishlamaydi — avval o'chirib, qayta yaratamiz (ruxsatlar pastda qayta beriladi).
+drop function if exists public.rating_users(text, text, text, int);
+drop function if exists public.rating_me(text);
+drop function if exists public.rating_universities(text);
+drop function if exists public.rating_points(text);
+
+-- Reyting ballari: har bir to'g'ri javob = 1 ball (prava va abituriyent testlari).
+-- Soxta natijalarga qarshi: bitta testdan ko'pi bilan 100 ball va har to'g'ri javobga kamida 1 soniya sarflangan bo'lishi kerak.
+create or replace function public.rating_points(period text)
+returns table (user_id uuid, points bigint, tests bigint)
+language sql stable security definer set search_path = public
+as $$
+  with since as (
+    select case period
+      when 'week' then now() - interval '7 days'
+      when 'month' then now() - interval '30 days'
+      else '-infinity'::timestamptz
+    end as t
+  ),
+  r as (
+    select p.user_id, least(p.correct, 100) as pts
+      from prava_results p, since
+     where p.created_at >= since.t and coalesce(p.duration_sec, 0) >= p.correct
+    union all
+    select e.user_id, least(e.correct, 100)
+      from exam_results e, since
+     where e.created_at >= since.t and e.mode in ('practice', 'mock') and coalesce(e.duration_sec, 0) >= e.correct
+  )
+  select user_id, sum(pts)::bigint, count(*)::bigint from r group by user_id having sum(pts) > 0
+$$;
+
+revoke all on function public.rating_points(text) from public, anon, authenticated;
+
+-- Foydalanuvchilar reytingi.
+create or replace function public.rating_users(
+  period text default 'week',
+  p_status text default null,
+  p_university text default null,
+  p_limit int default 100
+)
+returns table (
+  rank bigint, user_id uuid, full_name text, avatar_url text, status text,
+  university_id text, university_name text, faculty text, points bigint, tests bigint
+)
+language sql stable security definer set search_path = public
+as $$
+  select rank() over (order by a.points desc), p.id, p.full_name, p.avatar_url, p.status,
+         p.university_id, p.university_name, p.faculty, a.points, a.tests
+    from rating_points(period) a
+    join profiles p on p.id = a.user_id
+   where (p_status is null or p.status = p_status)
+     and (p_university is null or p.university_id = p_university or (p.university_id is null and p.university_name = p_university))
+   order by a.points desc, a.tests asc
+   limit least(greatest(p_limit, 1), 200)
+$$;
+
+-- Joriy foydalanuvchining o'rni (umumiy reytingda).
+create or replace function public.rating_me(period text default 'week')
+returns table (rank bigint, points bigint, tests bigint, participants bigint)
+language sql stable security definer set search_path = public
+as $$
+  with ranked as (
+    select a.user_id, a.points, a.tests, rank() over (order by a.points desc) as rank
+      from rating_points(period) a
+      join profiles p on p.id = a.user_id
+  )
+  select r.rank, r.points, r.tests, (select count(*) from ranked)
+    from ranked r where r.user_id = auth.uid()
+$$;
+
+-- Oliygohlar reytingi: talabalar soni, faol talabalar va jami ball.
+create or replace function public.rating_universities(period text default 'week')
+returns table (university_id text, university_name text, students bigint, active bigint, points bigint)
+language sql stable security definer set search_path = public
+as $$
+  select max(p.university_id), max(p.university_name),
+         count(*)::bigint,
+         count(a.user_id)::bigint,
+         coalesce(sum(a.points), 0)::bigint
+    from profiles p
+    left join rating_points(period) a on a.user_id = p.id
+   where p.status = 'talaba' and p.university_name is not null
+   group by coalesce(p.university_id, lower(trim(p.university_name)))
+   order by 5 desc, 3 desc
+   limit 300
+$$;
+
+revoke all on function public.rating_users(text, text, text, int) from public, anon;
+revoke all on function public.rating_me(text) from public, anon;
+revoke all on function public.rating_universities(text) from public, anon;
+grant execute on function public.rating_users(text, text, text, int) to authenticated;
+grant execute on function public.rating_me(text) to authenticated;
+grant execute on function public.rating_universities(text) to authenticated;
+
 notify pgrst, 'reload schema';

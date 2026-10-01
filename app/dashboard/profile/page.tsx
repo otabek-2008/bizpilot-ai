@@ -10,8 +10,10 @@ import { banners, type ProfileMeta } from "@/lib/profile";
 import { logActivity } from "@/lib/activity";
 import { supabase } from "@/lib/supabase";
 import { formatDate } from "@/lib/date";
+import { useStudentProfile } from "@/components/profile/ProfileGate";
+import StudyForm from "@/components/profile/StudyForm";
+import { emptyStudentProfile, type StudentProfile } from "@/lib/student-profile";
 
-const COURSES = ["1-kurs", "2-kurs", "3-kurs", "4-kurs", "5-kurs", "Magistratura", "Bitirgan", "O'quvchi", "Boshqa"];
 const PROVIDERS: Record<string, string> = {
   email: "Email",
   google: "Google",
@@ -37,9 +39,6 @@ export default function ProfilePage() {
   const [form, setForm] = useState({
     full_name: (user.user_metadata as ProfileMeta & { name?: string }).full_name ?? user.user_metadata?.name ?? "",
     bio: profile.bio,
-    university: profile.university,
-    faculty: profile.faculty,
-    course: profile.course,
     banner: profile.banner,
   });
   const [saving, setSaving] = useState<"" | "profile" | "avatar" | "password">("");
@@ -47,6 +46,26 @@ export default function ProfilePage() {
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [pw, setPw] = useState({ next: "", confirm: "" });
   const fileInput = useRef<HTMLInputElement>(null);
+  const { student, save: saveStudent } = useStudentProfile();
+  const [study, setStudy] = useState<StudentProfile>(() => student ?? emptyStudentProfile());
+  const [studyState, setStudyState] = useState<{ saving: boolean; ok: boolean; error: string }>({ saving: false, ok: false, error: "" });
+  const studyLine =
+    student?.status === "talaba"
+      ? [student.university_name, student.faculty].filter(Boolean).join(" · ")
+      : student?.status === "abituriyent"
+        ? "Abituriyent"
+        : "";
+
+  async function saveStudy() {
+    setStudyState({ saving: true, ok: false, error: "" });
+    try {
+      await saveStudent(study);
+      setStudyState({ saving: false, ok: true, error: "" });
+      logActivity("profile", "O'qish ma'lumotlari yangilandi");
+    } catch (e) {
+      setStudyState({ saving: false, ok: false, error: (e as Error).message });
+    }
+  }
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => {
     setSaved(false);
@@ -155,7 +174,7 @@ export default function ProfilePage() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-2xl font-semibold">{preview.name}</p>
             <p className="truncate text-sm text-zinc-400">
-              {[form.university, form.course].filter(Boolean).join(" · ") || "O'qish joyini qo'shing"}
+              {studyLine || "O'qish ma'lumotlarini to'ldiring"}
             </p>
           </div>
           {profile.avatar && (
@@ -178,26 +197,13 @@ export default function ProfilePage() {
       )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
         {/* Asosiy ma'lumotlar */}
-        <form onSubmit={saveProfile} className="glass space-y-5 rounded-3xl p-6 lg:col-span-2">
+        <form onSubmit={saveProfile} className="glass space-y-5 rounded-3xl p-6">
           <h2 className="text-lg font-semibold">Shaxsiy ma&apos;lumotlar</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="To'liq ism" id="p-name">
               <input id="p-name" value={form.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Ism Familiya" className="field accent-ring" />
-            </Field>
-            <Field label="Kurs" id="p-course">
-              <select id="p-course" value={form.course} onChange={(e) => set("course", e.target.value)} className="field accent-ring">
-                <option value="">Tanlang</option>
-                {COURSES.map((c) => (
-                  <option key={c} value={c} className="bg-surface">{c}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="O'qish joyi" id="p-uni">
-              <input id="p-uni" value={form.university} onChange={(e) => set("university", e.target.value)} placeholder="Masalan: TATU" className="field accent-ring" />
-            </Field>
-            <Field label="Fakultet / yo'nalish" id="p-fac">
-              <input id="p-fac" value={form.faculty} onChange={(e) => set("faculty", e.target.value)} placeholder="Dasturiy injiniring" className="field accent-ring" />
             </Field>
           </div>
           <Field label={`Bio (${form.bio.length}/160)`} id="p-bio">
@@ -226,6 +232,33 @@ export default function ProfilePage() {
             {saved ? "Saqlandi" : "Saqlash"}
           </button>
         </form>
+
+        {/* O'qish ma'lumotlari (reyting uchun) */}
+        <section className="glass space-y-5 rounded-3xl p-6">
+          <div>
+            <h2 className="text-lg font-semibold">O&apos;qish ma&apos;lumotlari</h2>
+            <p className="mt-1 text-sm text-zinc-500">Reyting jadvalida shu ma&apos;lumotlar ko&apos;rsatiladi.</p>
+          </div>
+          {student ? (
+            <>
+              <StudyForm
+                value={study}
+                onChange={(v) => {
+                  setStudy(v);
+                  setStudyState((st) => ({ ...st, ok: false }));
+                }}
+              />
+              {studyState.error && <p className="text-sm text-red-300">{studyState.error}</p>}
+              <button onClick={() => void saveStudy()} disabled={studyState.saving} className="btn-accent">
+                {studyState.saving ? <Loader2 size={17} className="animate-spin" /> : studyState.ok ? <Check size={17} /> : <Save size={17} />}
+                {studyState.ok ? "Saqlandi" : "Saqlash"}
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-zinc-500">Bu bo&apos;lim tez orada ishga tushadi.</p>
+          )}
+        </section>
+        </div>
 
         <div className="space-y-6">
           {/* Hisob */}

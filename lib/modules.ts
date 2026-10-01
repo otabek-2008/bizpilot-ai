@@ -15,6 +15,7 @@ import {
   Presentation,
   ScanFace,
   ScrollText,
+  Trophy,
   Sigma,
   SpellCheck,
   UserRound,
@@ -35,6 +36,7 @@ export type EnterAnimation =
 
 export type ModuleId =
   | "dashboard"
+  | "reyting"
   | "case"
   | "translit"
   | "spellcheck"
@@ -78,6 +80,18 @@ export const modules: Record<ModuleId, AppModule> = {
     from: "#8b5cf6",
     to: "#6366f1",
     enter: "rise",
+  },
+  reyting: {
+    id: "reyting",
+    title: "Reyting",
+    short: "Reyting",
+    desc: "Eng faol foydalanuvchilar va oliygohlar: haftalik, oylik va umumiy reyting",
+    href: "/dashboard/reyting",
+    icon: Trophy,
+    from: "#f59e0b",
+    to: "#eab308",
+    enter: "rise",
+    badge: "Yangi",
   },
   case: {
     id: "case",
@@ -289,7 +303,7 @@ export const modules: Record<ModuleId, AppModule> = {
 };
 
 export const navGroups: { label?: string; items: ModuleId[] }[] = [
-  { items: ["dashboard"] },
+  { items: ["dashboard", "reyting"] },
   { label: "Matn vositalari", items: ["case", "translit", "spellcheck"] },
   { label: "Rasm vositalari", items: ["photo"] },
   { label: "Hujjat vositalari", items: ["documents", "cv"] },
