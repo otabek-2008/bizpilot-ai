@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CSV_TEMPLATE, examPassed, normalizeQuestion, parseCorrect, parseCsv, parseImport, score, shuffle, type PravaQuestion } from "./prava";
+import { CSV_TEMPLATE, examFormat, examPassed, normalizeQuestion, parseCorrect, parseCsv, parseImport, score, shuffle, type PravaQuestion } from "./prava";
 
 test("parseCsv: qo'shtirnoq, ichki ajratgich va yangi qator", () => {
   const rows = parseCsv('a;b;c\n1;"x; y";"ko\'p\nqatorli"\r\n2;"""q""";\n\n');
@@ -77,11 +77,20 @@ const q = (id: number, correct: number): PravaQuestion => ({
 test("score va examPassed", () => {
   const qs = [q(1, 0), q(2, 1), q(3, 2)];
   assert.deepEqual(score(qs, { 1: 0, 2: 0 }), { correct: 1, wrong: 1, answered: 2, total: 3 });
-  assert.equal(examPassed(qs, { 1: 0, 2: 0 }), false); // hammasiga javob berilmagan
-  assert.equal(examPassed(qs, { 1: 0, 2: 0, 3: 0 }), true); // 2 ta xato — o'tadi
-  const twenty = Array.from({ length: 20 }, (_, i) => q(i + 1, 0));
-  const answers = Object.fromEntries(twenty.map((x, i) => [x.id, i < 3 ? 1 : 0]));
-  assert.equal(examPassed(twenty, answers), false); // 3 ta xato
+
+  const withWrong = (n: number, wrong: number, unanswered = 0) => {
+    const list = Array.from({ length: n }, (_, i) => q(i + 1, 0));
+    const answers = Object.fromEntries(list.slice(unanswered).map((x, i) => [x.id, i < wrong ? 1 : 0]));
+    return [list, answers] as const;
+  };
+  const f20 = examFormat(20);
+  const f50 = examFormat(50);
+  assert.equal(examPassed(...withWrong(20, 1), f20), true); // 19/20 — o'tdi
+  assert.equal(examPassed(...withWrong(20, 2), f20), false); // 18/20 — o'tmadi
+  assert.equal(examPassed(...withWrong(20, 0, 2), f20), false); // 2 ta javobsiz
+  assert.equal(examPassed(...withWrong(50, 4), f50), true); // 46/50 — o'tdi
+  assert.equal(examPassed(...withWrong(50, 5), f50), false); // 45/50 — o'tmadi
+  assert.equal(examPassed(...withWrong(20, 0), f50), false); // savollar soni formatga mos emas
 });
 
 test("shuffle elementlarni yo'qotmaydi", () => {

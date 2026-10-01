@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Flag, RotateCw, Timer, XCir
 import { useAuth } from "@/components/AuthProvider";
 import { logActivity } from "@/lib/activity";
 import { imageUrl, recordAnswer, saveResult } from "@/lib/prava-db";
-import { EXAM, examPassed, score, type Answers, type PravaMode, type PravaQuestion } from "@/lib/prava";
+import { examPassed, maxMistakes, score, type Answers, type ExamFormat, type PravaMode, type PravaQuestion } from "@/lib/prava";
 
 const LETTERS = "ABCDEF";
 
@@ -17,6 +17,8 @@ export type TestSession = {
   questions: PravaQuestion[];
   ticket?: number | null;
   topic?: string | null;
+  /** Faqat imtihon rejimida. */
+  exam?: ExamFormat;
 };
 
 function clock(sec: number) {
@@ -38,8 +40,9 @@ export default function TestRunner({
 }) {
   const { user } = useAuth();
   const { questions, mode } = session;
-  const isExam = mode === "exam";
-  const limitSec = isExam ? EXAM.minutes * 60 : null;
+  const exam = mode === "exam" ? session.exam : undefined;
+  const isExam = exam != null;
+  const limitSec = exam ? exam.minutes * 60 : null;
 
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
@@ -73,7 +76,7 @@ export default function TestRunner({
   useEffect(() => {
     if (!finished || saved.current) return;
     saved.current = true;
-    const passed = isExam ? examPassed(questions, answers) : null;
+    const passed = exam ? examPassed(questions, answers, exam) : null;
     void saveResult(user.id, {
       mode,
       ticket: session.ticket ?? null,
@@ -87,7 +90,7 @@ export default function TestRunner({
       "prava",
       `${session.title}: ${s.correct}/${questions.length}${passed == null ? "" : passed ? " — o'tdi" : " — o'tmadi"}`,
     );
-  }, [finished, isExam, questions, answers, user.id, mode, session, s.correct, elapsed]);
+  }, [finished, exam, questions, answers, user.id, mode, session, s.correct, elapsed]);
 
   const choose = useCallback(
     (option: number) => {
@@ -96,11 +99,11 @@ export default function TestRunner({
       setAnswers(next);
       recordAnswer(user.id, q.id, option === q.correct);
       const sc = score(questions, next);
-      // Imtihonda xatolar chegaradan oshsa — imtihon shu zahoti tugaydi
-      if (isExam && sc.wrong > EXAM.maxMistakes) finish();
-      else if (isExam && sc.answered === questions.length) finish();
+      // Imtihonda norma bajarib bo'lmaydigan bo'lsa (xatolar chegaradan oshsa) — imtihon shu zahoti tugaydi
+      if (exam && sc.wrong > maxMistakes(exam)) finish();
+      else if (exam && sc.answered === questions.length) finish();
     },
-    [finished, answers, q, user.id, questions, isExam, finish],
+    [finished, answers, q, user.id, questions, exam, finish],
   );
 
   const go = useCallback((i: number) => setIndex(Math.min(questions.length - 1, Math.max(0, i))), [questions.length]);
@@ -158,7 +161,7 @@ export default function TestRunner({
         </span>
         <span className="flex items-center gap-1.5 text-sm text-rose-300 tabular-nums">
           <XCircle size={16} /> {s.wrong}
-          {isExam && <span className="text-zinc-500">/{EXAM.maxMistakes}</span>}
+          {exam && <span className="text-zinc-500">/{maxMistakes(exam)}</span>}
         </span>
         <span
           className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm tabular-nums ${
@@ -296,17 +299,18 @@ function Result({
 }) {
   const { questions, mode } = session;
   const s = score(questions, answers);
-  const isExam = mode === "exam";
-  const passed = isExam ? examPassed(questions, answers) : s.correct === s.total;
+  const exam = mode === "exam" ? session.exam : undefined;
+  const isExam = exam != null;
+  const passed = exam ? examPassed(questions, answers, exam) : s.correct === s.total;
   const wrong = questions.filter((q) => answers[q.id] != null && answers[q.id] !== q.correct);
   const percent = Math.round((s.correct / s.total) * 100);
 
   let note = "";
-  if (isExam) {
+  if (exam) {
     if (passed) note = "Tabriklaymiz! Imtihondan o'tdingiz.";
-    else if (s.wrong > EXAM.maxMistakes) note = `Imtihon tugadi: ${EXAM.maxMistakes} tadan ko'p xato.`;
-    else if (timedOut) note = "Vaqt tugadi.";
-    else note = "Hamma savolga javob berilmadi.";
+    else if (s.wrong > maxMistakes(exam)) note = `Imtihondan o'tmadingiz: ${maxMistakes(exam)} tadan ko'p xato.`;
+    else if (timedOut) note = "Imtihondan o'tmadingiz: vaqt tugadi.";
+    else note = "Imtihondan o'tmadingiz: hamma savolga javob berilmadi.";
   } else {
     note = passed ? "Hammasi to'g'ri — zo'r!" : s.answered < s.total ? `${s.total - s.answered} ta savolga javob berilmadi.` : "Xatolar ustida ishlang.";
   }
@@ -324,6 +328,11 @@ function Result({
           <span className="text-3xl text-zinc-500">/{s.total}</span>
         </p>
         <p className={`relative mt-3 text-lg font-medium ${passed ? "text-emerald-300" : "text-rose-300"}`}>{note}</p>
+        {exam && (
+          <p className="relative mt-1 text-sm text-zinc-400">
+            Norma: {exam.size} tadan kamida {exam.minCorrect} ta to&apos;g&apos;ri javob
+          </p>
+        )}
         <p className="relative mt-2 text-sm text-zinc-500">
           {percent}% to&apos;g&apos;ri · {s.wrong} ta xato · vaqt: {clock(elapsed)}
         </p>

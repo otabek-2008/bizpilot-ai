@@ -3,8 +3,19 @@
 
 export const PRAVA_BUCKET = "prava-images";
 
-/** Imtihon qoidalari (DYHXX nazariy imtihoni kabi): 20 savol, 25 daqiqa, ko'pi bilan 2 ta xato. */
-export const EXAM = { questions: 20, minutes: 25, maxMistakes: 2 } as const;
+/** Imtihon formatlari: savollar soni, vaqt va o'tish normasi (kamida shuncha to'g'ri javob). */
+export const EXAM_FORMATS = [
+  { size: 20, minutes: 25, minCorrect: 19 },
+  { size: 50, minutes: 60, minCorrect: 46 },
+] as const;
+
+export type ExamFormat = (typeof EXAM_FORMATS)[number];
+export type ExamSize = ExamFormat["size"];
+
+export const examFormat = (size: ExamSize): ExamFormat => EXAM_FORMATS.find((f) => f.size === size) ?? EXAM_FORMATS[0];
+
+/** Normani buzmasdan qilish mumkin bo'lgan eng ko'p xato. */
+export const maxMistakes = (f: ExamFormat) => f.size - f.minCorrect;
 
 export const MIN_OPTIONS = 2;
 export const MAX_OPTIONS = 6;
@@ -275,8 +286,7 @@ export function score(questions: PravaQuestion[], answers: Answers) {
   return { correct, wrong, answered: correct + wrong, total: questions.length };
 }
 
-/** Imtihon: xatolar chegaradan oshmasa va hamma savolga javob berilgan bo'lsa — o'tdi. */
-export function examPassed(questions: PravaQuestion[], answers: Answers): boolean {
-  const s = score(questions, answers);
-  return s.wrong <= EXAM.maxMistakes && s.answered === s.total;
+/** Imtihon: faqat norma bajarilsa (to'g'ri javoblar kamida minCorrect ta) — o'tdi. Javobsiz savol to'g'ri hisoblanmaydi. */
+export function examPassed(questions: PravaQuestion[], answers: Answers, format: ExamFormat): boolean {
+  return questions.length === format.size && score(questions, answers).correct >= format.minCorrect;
 }

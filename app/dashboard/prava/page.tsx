@@ -9,13 +9,13 @@ import { useAuth } from "@/components/AuthProvider";
 import TestRunner, { type TestSession } from "@/components/prava/TestRunner";
 import { modules } from "@/lib/modules";
 import { latinToCyrillic } from "@/lib/translit";
-import { EXAM, byPosition, shuffle, type PravaMode } from "@/lib/prava";
+import { EXAM_FORMATS, byPosition, examFormat, maxMistakes, shuffle, type ExamSize, type PravaMode } from "@/lib/prava";
 import { fetchIndex, fetchMistakeIds, fetchQuestions, fetchResults, type PravaResult, type QuestionIndex } from "@/lib/prava-db";
 
 type Script = "latin" | "cyrillic";
 const SCRIPT_KEY = "campusai:prava:script";
 
-type Spec = { mode: PravaMode; ticket?: number; topic?: string };
+type Spec = { mode: PravaMode; ticket?: number; topic?: string; size?: ExamSize };
 
 export default function PravaPage() {
   const { user } = useAuth();
@@ -85,15 +85,18 @@ export default function PravaPage() {
 
   async function start(spec: Spec) {
     if (!index) return;
-    const key = `${spec.mode}:${spec.ticket ?? spec.topic ?? ""}`;
+    const key = `${spec.mode}:${spec.ticket ?? spec.topic ?? spec.size ?? ""}`;
     setError("");
     setStarting(key);
     try {
       let ids: number[];
       let title: string;
-      if (spec.mode === "exam") {
-        ids = shuffle(index.map((q) => q.id)).slice(0, EXAM.questions);
-        title = "Imtihon";
+      const exam = spec.mode === "exam" ? examFormat(spec.size ?? 20) : undefined;
+      if (exam) {
+        // Norma to'liq formatga mo'ljallangan — savollar yetmasa imtihon boshlanmaydi
+        if (index.length < exam.size) throw new Error(`${exam.size} savollik imtihon uchun bazada kamida ${exam.size} ta savol kerak.`);
+        ids = shuffle(index.map((q) => q.id)).slice(0, exam.size);
+        title = `Imtihon · ${exam.size} savol`;
       } else if (spec.mode === "ticket") {
         ids = index.filter((q) => q.ticket === spec.ticket).map((q) => q.id);
         title = `${spec.ticket}-bilet`;
@@ -110,7 +113,7 @@ export default function PravaPage() {
 
       let questions = await fetchQuestions(ids);
       if (spec.mode === "ticket" || spec.mode === "topic") questions = questions.sort(byPosition);
-      setSession({ key: crypto.randomUUID(), mode: spec.mode, title, questions, ticket: spec.ticket, topic: spec.topic, spec });
+      setSession({ key: crypto.randomUUID(), mode: spec.mode, title, questions, ticket: spec.ticket, topic: spec.topic, exam, spec });
       window.scrollTo({ top: 0 });
     } catch (e) {
       setError((e as Error).message);
@@ -180,15 +183,26 @@ export default function PravaPage() {
             <Stat icon={Trophy} label="O'tilgan imtihonlar" value={exams.length ? `${examsPassed}/${exams.length}` : "—"} />
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <ModeCard
-              icon={Timer}
-              title="Imtihon"
-              desc={`${Math.min(EXAM.questions, index.length)} ta tasodifiy savol · ${EXAM.minutes} daqiqa · ko'pi bilan ${EXAM.maxMistakes} ta xato. Haqiqiy imtihon sharoiti.`}
-              action="Imtihonni boshlash"
-              busy={starting === "exam:"}
-              onClick={() => void start({ mode: "exam" })}
-            />
+          <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {EXAM_FORMATS.map((f) => {
+              const enough = index.length >= f.size;
+              return (
+                <ModeCard
+                  key={f.size}
+                  icon={Timer}
+                  title={`Imtihon · ${f.size} savol`}
+                  desc={
+                    `${f.size} ta tasodifiy savol · ${f.minutes} daqiqa. O'tish normasi: kamida ${f.minCorrect} ta to'g'ri ` +
+                    `(ko'pi bilan ${maxMistakes(f)} ta xato).` +
+                    (enough ? "" : ` Bazada hozircha ${index.length} ta savol bor.`)
+                  }
+                  action="Imtihonni boshlash"
+                  busy={starting === `exam:${f.size}`}
+                  disabled={!enough || starting !== null}
+                  onClick={() => void start({ mode: "exam", size: f.size })}
+                />
+              );
+            })}
             <ModeCard
               icon={RotateCcw}
               title="Xatolar ustida ishlash"
