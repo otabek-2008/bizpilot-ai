@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, GraduationCap, UserRound } from "lucide-react";
+import ProgramPicker from "@/components/profile/ProgramPicker";
 import UniversityPicker from "@/components/profile/UniversityPicker";
 import { STATUSES, type StudentProfile, type UserStatus } from "@/lib/student-profile";
 
@@ -43,18 +44,14 @@ export default function StudyForm({ value: v, onChange }: { value: StudentProfil
             <p className="mb-2 text-sm text-zinc-400">Oliygoh</p>
             <UniversityPicker
               value={{ id: v.university_id, name: v.university_name }}
-              onChange={(u) => set({ university_id: u.id, university_name: u.name })}
+              // Oliygoh almashsa — avvalgi yo'nalish endi mos emas
+              onChange={(u) => set({ university_id: u.id, university_name: u.name, ...(u.id !== v.university_id && { faculty: null }) })}
             />
           </div>
-          <label className="block">
-            <span className="mb-2 block text-sm text-zinc-400">Yo&apos;nalish (mutaxassislik)</span>
-            <input
-              value={v.faculty ?? ""}
-              onChange={(e) => set({ faculty: e.target.value.slice(0, 200) })}
-              placeholder="Masalan: Dasturiy injiniring"
-              className="field accent-ring"
-            />
-          </label>
+          <div>
+            <p className="mb-2 text-sm text-zinc-400">Yo&apos;nalish (mutaxassislik)</p>
+            <ProgramPicker universityId={v.university_id} value={v.faculty} onChange={(faculty) => set({ faculty })} />
+          </div>
         </div>
       )}
     </div>

@@ -38,6 +38,13 @@ function friendly(message: string): string {
   if (m.includes("unable to validate email") || m.includes("invalid format")) return "Email manzili noto'g'ri.";
   if (m.includes("rate limit")) return "Juda ko'p urinish. Birozdan so'ng qayta urinib ko'ring.";
   if (m.includes("provider is not enabled") || m.includes("unsupported")) return "Bu kirish usuli hali sozlanmagan.";
+  // Google (OAuth) qaytishidagi xatolar
+  if (m.includes("access_denied") || m.includes("access denied")) return "Google orqali kirish bekor qilindi.";
+  if (m.includes("exchange external code") || m.includes("invalid_client") || m.includes("unauthorized_client"))
+    return "Google kirish sozlamalarida xatolik. Birozdan so'ng qayta urinib ko'ring yoki email bilan kiring.";
+  if (m.includes("email") && m.includes("external provider")) return "Google hisobingizdan email olinmadi. Boshqa hisob bilan urinib ko'ring.";
+  if (m.includes("flow state") || m.includes("oauth_state") || m.includes("oauth state")) return "Kirish sessiyasi eskirgan. Qaytadan \"Google\" tugmasini bosing.";
+  if (m.includes("server_error") || m.includes("database error")) return "Hisob yaratishda server xatosi. Qayta urinib ko'ring.";
   return message;
 }
 
@@ -46,6 +53,20 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+
+  // Google'dan xato bilan qaytilgan bo'lsa (AuthProvider uni ?auth_error= ga o'tkazadi)
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const authError = url.searchParams.get("auth_error");
+    if (!authError) return;
+    // Hydratsiyadan keyin ko'rsatamiz; manzildan esa olib tashlaymiz (yangilaganda qayta chiqmasin)
+    const t = setTimeout(() => {
+      setError(friendly(authError));
+      url.searchParams.delete("auth_error");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    });
+    return () => clearTimeout(t);
+  }, []);
 
   // Supabase'da qaysi provayderlar yoqilganini bilib olamiz
   useEffect(() => {
@@ -67,7 +88,8 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
     setBusy(provider);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      // select_account — bir nechta Google hisobi bo'lsa, keraklisini tanlash imkoni
+      options: { redirectTo: `${window.location.origin}/dashboard`, queryParams: { prompt: "select_account" } },
     });
     if (error) {
       setError(friendly(error.message));

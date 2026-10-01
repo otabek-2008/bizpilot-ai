@@ -22,6 +22,17 @@ export function useAuth(): AuthState {
   return ctx;
 }
 
+/**
+ * Google qaytishda xato bersa (…/dashboard#error=…&error_description=…), uni /login ga olib o'tamiz —
+ * aks holda foydalanuvchi sababsiz kirish sahifasiga qaytib qoladi.
+ */
+function loginUrl(): string {
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  new URLSearchParams(window.location.search).forEach((v, k) => params.set(k, v));
+  const error = params.get("error_description") || params.get("error");
+  return error ? `/login?auth_error=${encodeURIComponent(error)}` : "/login";
+}
+
 // Kirmagan foydalanuvchini /login ga yo'naltiradi, kirganlarga kontekst beradi.
 export default function AuthProvider({
   children,
@@ -39,7 +50,7 @@ export default function AuthProvider({
     supabase.auth.getUser().then(({ data }) => {
       if (!active) return;
       if (!data.user) {
-        router.replace("/login");
+        router.replace(loginUrl());
         return;
       }
       setActivityUser(data.user.id);
@@ -49,7 +60,7 @@ export default function AuthProvider({
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session) {
         setActivityUser(null);
-        router.replace("/login");
+        router.replace(loginUrl());
       } else if (event === "USER_UPDATED" || event === "TOKEN_REFRESHED") {
         setUser(session.user);
       }
