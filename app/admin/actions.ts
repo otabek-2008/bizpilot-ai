@@ -6,6 +6,8 @@ import { assertAdmin, checkLogin, logout } from "@/lib/admin/auth";
 import { adminDb, isBucket, type Bucket } from "@/lib/admin/db";
 import { extOf } from "@/lib/admin/files";
 import { normalizeQuestion, type QuestionInput } from "@/lib/prava";
+import { normalizeExamQuestion, type ExamQuestionInput } from "@/lib/exam-questions";
+import { examById } from "@/lib/exams";
 
 // Har bir funksiya POST orqali to'g'ridan-to'g'ri chaqirilishi mumkin — shuning uchun hammasida assertAdmin().
 
@@ -242,4 +244,120 @@ export async function importQuestionsAction(rows: QuestionInput[], replaceAll: b
   }
   refresh();
   return { inserted: clean.length };
+}
+
+// ---------------- Abituriyent savollari va materiallari ----------------
+
+const EXAM_BUCKET = "exam-files";
+
+export async function saveExamQuestionAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  await assertAdmin();
+  const id = str(fd, "id");
+  let row: ExamQuestionInput;
+  try {
+    row = normalizeExamQuestion({
+      exam: fd.get("exam"),
+      subject: fd.get("subject"),
+      topic: fd.get("topic"),
+      question: fd.get("question"),
+      options: fd.getAll("option"),
+      correct: fd.get("correct"),
+      correctIsIndex: true,
+      explanation: fd.get("explanation"),
+      passage: fd.get("passage"),
+      image: fd.get("image"),
+      active: fd.get("active") ? "1" : "0",
+    });
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
+  const table = adminDb().from("exam_questions");
+  const { data, error } = id
+    ? await table.update({ ...row, updated_at: new Date().toISOString() }).eq("id", id).select("id").single()
+    : await table.insert(row).select("id").single();
+  if (error) return { error: `Saqlab bo'lmadi: ${error.message}` };
+  refresh();
+  if (!id) redirect(`/admin/exams/${data.id}?saved=1`);
+  return { ok: "Saqlandi." };
+}
+
+export async function deleteExamQuestionAction(fd: FormData) {
+  await assertAdmin();
+  const { error } = await adminDb().from("exam_questions").delete().eq("id", str(fd, "id"));
+  if (error) throw new Error(`Savolni o'chirib bo'lmadi: ${error.message}`);
+  refresh();
+  if (str(fd, "back")) redirect("/admin/exams");
+}
+
+export async function toggleExamQuestionAction(fd: FormData) {
+  await assertAdmin();
+  const { error } = await adminDb()
+    .from("exam_questions")
+    .update({ active: str(fd, "active") === "1", updated_at: new Date().toISOString() })
+    .eq("id", str(fd, "id"));
+  if (error) throw new Error(`Saqlab bo'lmadi: ${error.message}`);
+  refresh();
+}
+
+/** Import bo'laklari; replace berilsa — avval shu imtihon/fandagi savollar o'chiriladi (faqat birinchi bo'lakda). */
+export async function importExamQuestionsAction(
+  rows: ExamQuestionInput[],
+  replace: { exam: string; subject: string | null } | null,
+): Promise<{ inserted: number }> {
+  await assertAdmin();
+  if (!Array.isArray(rows) || rows.length > 500) throw new Error("Bir martada ko'pi bilan 500 ta savol.");
+  const clean = rows.map((r, i) => {
+    try {
+      return normalizeExamQuestion({ ...r, correctIsIndex: true });
+    } catch (e) {
+      throw new Error(`${i + 1}-savol: ${(e as Error).message}`);
+    }
+  });
+
+  const db = adminDb();
+  if (replace) {
+    if (!examById(replace.exam)) throw new Error("Imtihon noto'g'ri.");
+    let del = db.from("exam_questions").delete().eq("exam", replace.exam);
+    if (replace.subject) del = del.eq("subject", replace.subject);
+    const { error } = await del;
+    if (error) throw new Error(`Eski savollarni o'chirib bo'lmadi: ${error.message}`);
+  }
+  if (clean.length) {
+    const { error } = await db.from("exam_questions").insert(clean);
+    if (error) throw new Error(`Saqlab bo'lmadi: ${error.message}`);
+  }
+  refresh();
+  return { inserted: clean.length };
+}
+
+export async function addMaterialAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  await assertAdmin();
+  const exam = examById(str(fd, "exam"));
+  if (!exam) return { error: "Imtihonni tanlang." };
+  const subject = str(fd, "subject");
+  if (subject && !exam.subjects.some((s) => s.id === subject)) return { error: "Fan noto'g'ri." };
+  const kind = str(fd, "kind") === "file" ? "file" : "link";
+  const title = str(fd, "title").slice(0, 200);
+  const url = str(fd, "url");
+  if (!title) return { error: "Sarlavhani kiriting." };
+  if (kind === "link" && !/^https?:\/\/\S+$/.test(url)) return { error: "Havola http:// yoki https:// bilan boshlanishi kerak." };
+  if (kind === "file" && (!url || url.split("/").includes(".."))) return { error: "Faylni yuklang." };
+
+  const { error } = await adminDb()
+    .from("exam_materials")
+    .insert({ exam: exam.id, subject: subject || null, title, description: str(fd, "description").slice(0, 1000) || null, kind, url });
+  if (error) return { error: `Saqlab bo'lmadi: ${error.message}` };
+  refresh();
+  return { ok: "Material qo'shildi." };
+}
+
+export async function deleteMaterialAction(fd: FormData) {
+  await assertAdmin();
+  const db = adminDb();
+  const { data, error } = await db.from("exam_materials").delete().eq("id", str(fd, "id")).select("kind, url").maybeSingle();
+  if (error) throw new Error(`O'chirib bo'lmadi: ${error.message}`);
+  // Yuklangan fayl ham o'chiriladi (havola bo'lsa — faqat yozuv)
+  if (data?.kind === "file") await db.storage.from(EXAM_BUCKET).remove([data.url]);
+  refresh();
 }

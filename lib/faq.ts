@@ -10,7 +10,7 @@ export type Faq = {
 export const faqs: Faq[] = [
   {
     q: "CampusAI bepulmi?",
-    a: "Ha. Hozirgi barcha vositalar — matn, rasm va hujjat konvertorlari — bepul. Hisob yaratib, darhol foydalanishingiz mumkin.",
+    a: "Ha. Hozirgi barcha vositalar — matn, rasm, hujjat va AI vositalari — bepul. Hisob yaratib, darhol foydalanishingiz mumkin.",
     keywords: ["bepul", "pul", "narx", "tolov", "to'lov", "obuna", "free", "бесплат", "цена"],
   },
   {
@@ -43,10 +43,22 @@ export const faqs: Faq[] = [
     module: "case",
   },
   {
-    q: "Taqdimot yaratish qachon ishga tushadi?",
-    a: "Taqdimot generatori AI integratsiyasi bilan tez orada qo'shiladi. Taqdimot bo'limida «Xabar berish» tugmasini bosib qo'ying.",
+    q: "Taqdimotni qanday yarataman?",
+    a: "«Taqdimot yaratish» bo'limida mavzu, slaydlar soni va tilni tanlang — AI slaydlar matni va ma'ruzachi izohlarini tuzadi. Dizaynni tanlab, PowerPoint (.pptx) faylini yuklab olasiz.",
     keywords: ["taqdimot", "slayd", "prezent", "powerpoint", "pptx", "презентац"],
     module: "presentation",
+  },
+  {
+    q: "DTM, IELTS yoki SAT ga qanday tayyorlanaman?",
+    a: "«Abituriyent» bo'limida DTM, Milliy sertifikat, IELTS, CEFR va SAT bor: fanlar bo'yicha mashq, to'liq mock test (DTM'da ball bilan), materiallar va IELTS/CEFR Writing'ni AI baholashi. Har javobdan keyin to'g'ri yoki noto'g'ri ekani ko'rsatiladi.",
+    keywords: ["dtm", "ielts", "sat", "cefr", "sertifikat", "abituriyent", "test", "mock", "imtihon", "oliygoh"],
+    module: "abituriyent",
+  },
+  {
+    q: "Masalani rasmga olib yechtirsa bo'ladimi?",
+    a: "Ha. «Masala yechuvchi» bo'limida masala rasmini yuklang yoki skrinshotni Ctrl+V bilan qo'ying — AI bosqichma-bosqich yechadi. «Maslahat» tugmasi javobni aytmasdan yo'l ko'rsatadi.",
+    keywords: ["masala", "yech", "misol", "matematika", "fizika", "rasm", "solve", "задач"],
+    module: "solver",
   },
   {
     q: "Parolni yoki profilimni qanday o'zgartiraman?",

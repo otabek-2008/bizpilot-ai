@@ -1,6 +1,10 @@
 // Prava (haydovchilik guvohnomasi) nazariy test moduli: savol turi, imtihon qoidalari va savollarni import qilish.
 // Savollar bazasi admin panel orqali to'ldiriladi — bu yerda hech qanday rasmiy savol yo'q.
 
+import { score, type Answers } from "./quiz";
+
+export { score, type Answers };
+
 export const PRAVA_BUCKET = "prava-images";
 
 /**
@@ -171,6 +175,10 @@ const HEADER_ALIASES: Record<string, string> = {
   izoh: "explanation", explanation: "explanation",
   rasm: "image", image: "image",
   faol: "active", active: "active",
+  // Abituriyent savollari uchun (prava importi bularni e'tiborsiz qoldiradi)
+  imtihon: "exam", exam: "exam",
+  fan: "subject", subject: "subject",
+  matn: "passage", passage: "passage",
 };
 
 function headerKey(h: string): string | null {
@@ -185,73 +193,87 @@ function headerKey(h: string): string | null {
 
 export type ImportResult = { questions: QuestionInput[]; errors: string[] };
 
-function fromCsv(text: string): ImportResult {
-  const rows = parseCsv(text);
-  if (rows.length < 2) return { questions: [], errors: ["Faylda sarlavha qatori va kamida bitta savol bo'lishi kerak."] };
-  const keys = rows[0].map(headerKey);
-  if (!keys.includes("question")) return { questions: [], errors: ['Sarlavhada "savol" ustuni topilmadi.'] };
-  if (!keys.some((k) => k?.startsWith("opt"))) return { questions: [], errors: ['Sarlavhada "javob1", "javob2", ... ustunlari topilmadi.'] };
-  if (!keys.includes("correct")) return { questions: [], errors: ['Sarlavhada "togri" ustuni topilmadi.'] };
+/** Fayldan o'qilgan, hali tekshirilmagan yozuv: ustun kalitlari (question, correct, ...) va variantlar. */
+export type RawRecord = Record<string, unknown> & { options: unknown[] };
 
-  const questions: QuestionInput[] = [];
-  const errors: string[] = [];
-  rows.slice(1).forEach((cells, i) => {
+type Records = { records: { label: string; rec: RawRecord }[]; errors: string[] };
+
+function csvRecords(text: string): Records {
+  const rows = parseCsv(text);
+  if (rows.length < 2) return { records: [], errors: ["Faylda sarlavha qatori va kamida bitta savol bo'lishi kerak."] };
+  const keys = rows[0].map(headerKey);
+  if (!keys.includes("question")) return { records: [], errors: ['Sarlavhada "savol" ustuni topilmadi.'] };
+  if (!keys.some((k) => k?.startsWith("opt"))) return { records: [], errors: ['Sarlavhada "javob1", "javob2", ... ustunlari topilmadi.'] };
+  if (!keys.includes("correct")) return { records: [], errors: ['Sarlavhada "togri" ustuni topilmadi.'] };
+
+  const records = rows.slice(1).map((cells, i) => {
     const rec: Record<string, string> = {};
     keys.forEach((k, j) => {
       if (k) rec[k] = cells[j] ?? "";
     });
     const options = Array.from({ length: MAX_OPTIONS }, (_, j) => rec[`opt${j}`] ?? "");
-    try {
-      questions.push(normalizeQuestion({ ...rec, options }));
-    } catch (e) {
-      errors.push(`${i + 2}-qator: ${(e as Error).message}`);
-    }
+    return { label: `${i + 2}-qator`, rec: { ...rec, options } };
   });
-  return { questions, errors };
+  return { records, errors: [] };
 }
 
-function fromJson(text: string): ImportResult {
+function jsonRecords(text: string): Records {
   let data: unknown;
   try {
-    data = JSON.parse(text.replace(/^﻿/, ""));
+    data = JSON.parse(text.replace(/^\uFEFF/, ""));
   } catch (e) {
-    return { questions: [], errors: [`JSON xato: ${(e as Error).message}`] };
+    return { records: [], errors: [`JSON xato: ${(e as Error).message}`] };
   }
-  if (!Array.isArray(data)) return { questions: [], errors: ["JSON ro'yxat ([ ... ]) bo'lishi kerak."] };
+  if (!Array.isArray(data)) return { records: [], errors: ["JSON ro'yxat ([ ... ]) bo'lishi kerak."] };
 
-  const questions: QuestionInput[] = [];
+  const records: Records["records"] = [];
   const errors: string[] = [];
   data.forEach((item, i) => {
-    try {
-      if (!item || typeof item !== "object") throw new Error("obyekt emas.");
-      const o = item as Record<string, unknown>;
-      const options = o.javoblar ?? o.variantlar ?? o.options ?? o.answers;
-      if (!Array.isArray(options)) throw new Error('"javoblar" ro\'yxati topilmadi.');
-      questions.push(
-        normalizeQuestion({
-          ticket: o.bilet ?? o.ticket,
-          position: o.tartib ?? o.position,
-          topic: o.mavzu ?? o.topic,
-          question: o.savol ?? o.question,
-          options,
-          correct: o.togri ?? o["to'g'ri"] ?? o.correct,
-          explanation: o.izoh ?? o.explanation,
-          image: o.rasm ?? o.image,
-          active: o.faol ?? o.active,
-        }),
-      );
-    } catch (e) {
-      errors.push(`${i + 1}-savol: ${(e as Error).message}`);
-    }
+    const label = `${i + 1}-savol`;
+    if (!item || typeof item !== "object") return errors.push(`${label}: obyekt emas.`);
+    const o = item as Record<string, unknown>;
+    const options = o.javoblar ?? o.variantlar ?? o.options ?? o.answers;
+    if (!Array.isArray(options)) return errors.push(`${label}: "javoblar" ro'yxati topilmadi.`);
+    records.push({
+      label,
+      rec: {
+        ticket: o.bilet ?? o.ticket,
+        position: o.tartib ?? o.position,
+        topic: o.mavzu ?? o.topic,
+        question: o.savol ?? o.question,
+        options,
+        correct: o.togri ?? o["to'g'ri"] ?? o.correct,
+        explanation: o.izoh ?? o.explanation,
+        image: o.rasm ?? o.image,
+        active: o.faol ?? o.active,
+        exam: o.imtihon ?? o.exam,
+        subject: o.fan ?? o.subject,
+        passage: o.matn ?? o.passage,
+      },
+    });
   });
-  return { questions, errors };
+  return { records, errors };
+}
+
+/** Fayl matnini (CSV yoki JSON) yozuvlarga ajratadi — tekshirish chaqiruvchida. */
+export function readRecords(text: string): Records {
+  const t = text.replace(/^\uFEFF/, "").trimStart();
+  if (!t) return { records: [], errors: ["Fayl bo'sh."] };
+  return t.startsWith("[") ? jsonRecords(t) : csvRecords(t);
 }
 
 /** Fayl matnini (CSV yoki JSON) savollarga aylantiradi. Xato qatorlar o'tkazib yuboriladi va ro'yxatda qaytadi. */
 export function parseImport(text: string): ImportResult {
-  const t = text.replace(/^﻿/, "").trimStart();
-  if (!t) return { questions: [], errors: ["Fayl bo'sh."] };
-  return t.startsWith("[") ? fromJson(t) : fromCsv(t);
+  const { records, errors } = readRecords(text);
+  const questions: QuestionInput[] = [];
+  for (const { label, rec } of records) {
+    try {
+      questions.push(normalizeQuestion(rec));
+    } catch (e) {
+      errors.push(`${label}: ${(e as Error).message}`);
+    }
+  }
+  return { questions, errors };
 }
 
 /** Admin namunasi — rasmiy savol emas, faqat format ko'rsatkichi. */
@@ -274,20 +296,6 @@ export function shuffle<T>(items: readonly T[], random = Math.random): T[] {
 /** Bilet/mavzu savollari tartibi: avval tartib raqami, keyin id. */
 export const byPosition = (a: PravaQuestion, b: PravaQuestion) =>
   (a.position ?? Infinity) - (b.position ?? Infinity) || a.id - b.id;
-
-export type Answers = Record<number, number>;
-
-export function score(questions: PravaQuestion[], answers: Answers) {
-  let correct = 0;
-  let wrong = 0;
-  for (const q of questions) {
-    const a = answers[q.id];
-    if (a == null) continue;
-    if (a === q.correct) correct++;
-    else wrong++;
-  }
-  return { correct, wrong, answered: correct + wrong, total: questions.length };
-}
 
 /** Imtihon: faqat norma bajarilsa (to'g'ri javoblar kamida minCorrect ta) — o'tdi. Javobsiz savol to'g'ri hisoblanmaydi. */
 export function examPassed(questions: PravaQuestion[], answers: Answers, format: ExamFormat): boolean {

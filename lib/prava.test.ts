@@ -76,7 +76,7 @@ const q = (id: number, correct: number): PravaQuestion => ({
 
 test("score va examPassed", () => {
   const qs = [q(1, 0), q(2, 1), q(3, 2)];
-  assert.deepEqual(score(qs, { 1: 0, 2: 0 }), { correct: 1, wrong: 1, answered: 2, total: 3 });
+  assert.deepEqual(score(qs, { 1: 0, 2: 0 }), { correct: 1, wrong: 1, answered: 2, total: 3, points: 1, maxPoints: 3 });
 
   const withWrong = (n: number, wrong: number, unanswered = 0) => {
     const list = Array.from({ length: n }, (_, i) => q(i + 1, 0));
@@ -98,4 +98,14 @@ test("shuffle elementlarni yo'qotmaydi", () => {
   const out = shuffle(src, () => 0);
   assert.deepEqual([...out].sort(), src);
   assert.deepEqual(src, [1, 2, 3, 4, 5]);
+});
+
+test("abituriyent importi: imtihon/fan ustunlari va standart qiymatlar", async () => {
+  const { parseExamImport } = await import("./exam-questions");
+  const csv = "imtihon;fan;savol;javob1;javob2;togri;matn\nDTM;Matematika;2+2?;3;4;B;\n;;Capital of UK?;London;Paris;1;Some passage\nsat;kimyo;x;a;b;1;";
+  const r = parseExamImport(csv, { exam: "ielts", subject: "reading" });
+  assert.equal(r.questions.length, 2);
+  assert.deepEqual([r.questions[0].exam, r.questions[0].subject, r.questions[0].correct], ["dtm", "matematika", 1]);
+  assert.deepEqual([r.questions[1].exam, r.questions[1].subject, r.questions[1].passage], ["ielts", "reading", "Some passage"]);
+  assert.match(r.errors[0], /4-qator.*kimyo/);
 });

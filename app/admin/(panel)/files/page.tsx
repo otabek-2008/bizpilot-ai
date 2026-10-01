@@ -12,6 +12,7 @@ export const metadata = { title: "Fayllar" };
 const BUCKET_LABEL: Record<string, string> = {
   "admin-files": "Admin hujjatlari",
   "prava-images": "Prava rasmlari",
+  "exam-files": "Abituriyent fayllari",
   avatars: "Foydalanuvchi rasmlari",
 };
 

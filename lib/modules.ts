@@ -5,13 +5,17 @@ import {
   CaseSensitive,
   FileStack,
   FileUser,
+  Globe,
+  GraduationCap,
   Headset,
   Languages,
   LayoutDashboard,
+  ListChecks,
   MessagesSquare,
   Presentation,
   ScanFace,
   ScrollText,
+  Sigma,
   SpellCheck,
   UserRound,
   type LucideIcon,
@@ -42,6 +46,10 @@ export type ModuleId =
   | "cv"
   | "presentation"
   | "prava"
+  | "abituriyent"
+  | "quiz"
+  | "translator"
+  | "solver"
   | "chat"
   | "profile"
   | "contact";
@@ -178,13 +186,61 @@ export const modules: Record<ModuleId, AppModule> = {
     id: "presentation",
     title: "Taqdimot yaratish",
     short: "Taqdimot",
-    desc: "Mavzu bo'yicha tayyor slaydlar — tez kunda",
+    desc: "Mavzu bo'yicha tayyor slaydlar: AI matn tuzadi, siz PowerPoint (.pptx) qilib yuklab olasiz",
     href: "/dashboard/presentation",
     icon: Presentation,
     from: "#d946ef",
     to: "#8b5cf6",
     enter: "skew",
-    badge: "Tez kunda",
+    badge: "AI",
+  },
+  abituriyent: {
+    id: "abituriyent",
+    title: "Abituriyent",
+    short: "Abituriyent",
+    desc: "DTM, Milliy sertifikat, IELTS, CEFR va SAT: materiallar, mashq savollari, mock testlar va Writing tekshiruvi",
+    href: "/dashboard/abituriyent",
+    icon: GraduationCap,
+    from: "#22c55e",
+    to: "#0ea5e9",
+    enter: "rise",
+    badge: "Yangi",
+  },
+  quiz: {
+    id: "quiz",
+    title: "Test yaratuvchi",
+    short: "Test yaratish",
+    desc: "Mavzu yoki konspektingizdan AI test tuzadi — har javobdan keyin to'g'ri yoki noto'g'ri ekanini ko'rasiz",
+    href: "/dashboard/quiz",
+    icon: ListChecks,
+    from: "#14b8a6",
+    to: "#22c55e",
+    enter: "pop",
+    badge: "AI",
+  },
+  translator: {
+    id: "translator",
+    title: "Tarjimon",
+    short: "Tarjimon",
+    desc: "O'zbek, rus, ingliz va yana 9 til o'rtasida tabiiy, aniq tarjima",
+    href: "/dashboard/translator",
+    icon: Globe,
+    from: "#0ea5e9",
+    to: "#22d3ee",
+    enter: "slide",
+    badge: "AI",
+  },
+  solver: {
+    id: "solver",
+    title: "Masala yechuvchi",
+    short: "Masala yechish",
+    desc: "Masalani yozing yoki rasmini yuklang — AI bosqichma-bosqich yechib, tushuntirib beradi",
+    href: "/dashboard/solver",
+    icon: Sigma,
+    from: "#f97316",
+    to: "#eab308",
+    enter: "zoom",
+    badge: "AI",
   },
   prava: {
     id: "prava",
@@ -237,15 +293,19 @@ export const navGroups: { label?: string; items: ModuleId[] }[] = [
   { label: "Matn vositalari", items: ["case", "translit", "spellcheck"] },
   { label: "Rasm vositalari", items: ["photo"] },
   { label: "Hujjat vositalari", items: ["documents", "cv"] },
-  { label: "Imtihonlar", items: ["prava"] },
-  { label: "AI vositalar", items: ["assistant", "essay", "business", "presentation"] },
+  { label: "Imtihonlar", items: ["abituriyent", "prava"] },
+  { label: "AI vositalar", items: ["assistant", "solver", "quiz", "translator", "essay", "presentation", "business"] },
   { label: "Yordam", items: ["chat", "contact"] },
   { label: "Hisob", items: ["profile"] },
 ];
 
 // Bosh sahifadagi vosita kartalari tartibi.
 export const toolIds: ModuleId[] = [
+  "abituriyent",
   "assistant",
+  "solver",
+  "quiz",
+  "translator",
   "essay",
   "prava",
   "spellcheck",

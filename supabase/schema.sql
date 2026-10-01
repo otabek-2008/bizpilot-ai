@@ -238,4 +238,89 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('prava-images', 'prava-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 on conflict (id) do nothing;
 
+
+-- ================= Abituriyent bo'limi (DTM, Milliy sertifikat, IELTS, CEFR, SAT) =================
+-- Savollar bazasi admin panel orqali to'ldiriladi; exam/subject — lib/exams.ts dagi id'lar.
+create table if not exists public.exam_questions (
+  id bigint generated always as identity primary key,
+  exam text not null check (exam in ('dtm', 'milliy', 'ielts', 'cefr', 'sat')),
+  subject text not null check (char_length(subject) between 1 and 40),
+  topic text check (char_length(topic) <= 120),
+  question text not null check (char_length(question) between 1 and 4000),
+  options jsonb not null check (jsonb_typeof(options) = 'array' and jsonb_array_length(options) between 2 and 6),
+  correct smallint not null check (correct >= 0 and correct < jsonb_array_length(options)),
+  explanation text check (char_length(explanation) <= 3000),
+  passage text check (char_length(passage) <= 12000),
+  image text,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists exam_questions_subject_idx on public.exam_questions (exam, subject);
+
+alter table public.exam_questions enable row level security;
+
+drop policy if exists "Users read active exam questions" on public.exam_questions;
+create policy "Users read active exam questions"
+  on public.exam_questions for select to authenticated
+  using (active);
+
+-- Mashq va mock test natijalari.
+create table if not exists public.exam_results (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  exam text not null check (char_length(exam) <= 20),
+  subject text check (char_length(subject) <= 40),
+  mode text not null check (mode in ('practice', 'mock', 'ai', 'writing')),
+  total int not null check (total between 0 and 1000),
+  correct int not null check (correct between 0 and total),
+  points numeric(6, 1),
+  max_points numeric(6, 1),
+  duration_sec int check (duration_sec >= 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists exam_results_user_idx on public.exam_results (user_id, created_at desc);
+
+alter table public.exam_results enable row level security;
+
+drop policy if exists "Users read own exam results" on public.exam_results;
+create policy "Users read own exam results"
+  on public.exam_results for select using (auth.uid() = user_id);
+
+drop policy if exists "Users add own exam results" on public.exam_results;
+create policy "Users add own exam results"
+  on public.exam_results for insert with check (auth.uid() = user_id);
+
+-- O'quv materiallari (PDF, qo'llanma, havola) — admin yuklaydi.
+create table if not exists public.exam_materials (
+  id bigint generated always as identity primary key,
+  exam text not null check (exam in ('dtm', 'milliy', 'ielts', 'cefr', 'sat')),
+  subject text check (char_length(subject) <= 40),
+  title text not null check (char_length(title) between 1 and 200),
+  description text check (char_length(description) <= 1000),
+  kind text not null check (kind in ('file', 'link')),
+  url text not null check (char_length(url) <= 1000),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists exam_materials_exam_idx on public.exam_materials (exam, subject);
+
+alter table public.exam_materials enable row level security;
+
+drop policy if exists "Users read exam materials" on public.exam_materials;
+create policy "Users read exam materials"
+  on public.exam_materials for select to authenticated
+  using (true);
+
+grant select on public.exam_questions to authenticated;
+grant select on public.exam_materials to authenticated;
+grant select, insert on public.exam_results to authenticated;
+
+-- Savol rasmlari va materiallar uchun ochiq bucket (yuklash faqat admin panel orqali).
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('exam-files', 'exam-files', true, 52428800)
+on conflict (id) do nothing;
+
 notify pgrst, 'reload schema';
