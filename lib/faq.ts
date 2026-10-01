@@ -50,7 +50,7 @@ export const faqs: Faq[] = [
   },
   {
     q: "DTM, IELTS yoki SAT ga qanday tayyorlanaman?",
-    a: "«Abituriyent» bo'limida DTM, Milliy sertifikat, IELTS, CEFR va SAT bor: fanlar bo'yicha mashq, to'liq mock test (DTM'da ball bilan), materiallar va IELTS/CEFR Writing'ni AI baholashi. Har javobdan keyin to'g'ri yoki noto'g'ri ekani ko'rsatiladi.",
+    a: "«Abituriyent» bo'limida DTM, Milliy sertifikat, IELTS, CEFR va SAT bo'yicha fanlar kesimida testlar va o'quv materiallari bor. Har javobdan keyin to'g'ri yoki noto'g'ri ekani ko'rsatiladi.",
     keywords: ["dtm", "ielts", "sat", "cefr", "sertifikat", "abituriyent", "test", "mock", "imtihon", "oliygoh"],
     module: "abituriyent",
   },

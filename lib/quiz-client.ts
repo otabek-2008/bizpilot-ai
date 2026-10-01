@@ -1,8 +1,9 @@
 "use client";
 
 import { aiJson } from "@/lib/ai-client";
-import type { QuizLang } from "@/lib/exams";
 import type { TestQuestion } from "@/lib/quiz";
+
+export type QuizLang = "uz" | "ru" | "en";
 
 export type Difficulty = "oson" | "orta" | "qiyin";
 
@@ -18,13 +19,10 @@ export type QuizRequest = {
   count: number;
   difficulty: Difficulty;
   lang: QuizLang;
-  exam?: string;
-  subject?: string;
 };
 
 type QuizResponse = {
   title: string;
-  passage: string | null;
   questions: { question: string; options: string[]; correct: number; explanation: string }[];
 };
 
@@ -39,6 +37,6 @@ export async function generateQuiz(
   const res = await aiJson<QuizResponse>("/api/ai/quiz", req, signal);
   return {
     title: res.title,
-    questions: res.questions.map((q) => ({ ...q, ...extra, passage: res.passage, id: `ai-${Date.now().toString(36)}-${seq++}` })),
+    questions: res.questions.map((q) => ({ ...q, ...extra, id: `ai-${Date.now().toString(36)}-${seq++}` })),
   };
 }

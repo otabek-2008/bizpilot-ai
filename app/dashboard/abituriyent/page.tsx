@@ -10,7 +10,7 @@ import { EXAMS, examById, subjectOf } from "@/lib/exams";
 import { fetchExamResults, type ExamResult } from "@/lib/exam-db";
 import { formatShortDate } from "@/lib/date";
 
-const MODE_LABEL: Record<ExamResult["mode"], string> = { practice: "Mashq", ai: "AI mashq", mock: "Mock test", writing: "Writing" };
+const MODE_LABEL: Record<ExamResult["mode"], string> = { practice: "Test", ai: "AI mashq", mock: "Mock test", writing: "Writing" };
 
 export default function AbituriyentPage() {
   const { user } = useAuth();
@@ -46,12 +46,9 @@ export default function AbituriyentPage() {
               >
                 {e.short.slice(0, 4).toUpperCase()}
               </span>
-              <h2 className="relative mt-4 text-lg font-semibold">{e.name}</h2>
-              <p className="relative mt-1.5 flex-1 text-sm text-zinc-400">{e.desc}</p>
+              <h2 className="relative mt-4 flex-1 text-lg font-semibold">{e.name}</h2>
               <div className="relative mt-5 flex items-center justify-between text-sm">
-                <span className="text-zinc-500">
-                  {e.subjects.length} ta fan/bo&apos;lim{done ? ` · ${done} ta urinish` : ""}
-                </span>
+                <span className="text-zinc-500">{done ? `${done} ta urinish` : "Testlar va materiallar"}</span>
                 <span className="flex items-center gap-1 text-[var(--accent)] transition group-hover:translate-x-0.5">
                   Boshlash <ArrowRight size={15} />
                 </span>
@@ -80,18 +77,8 @@ export default function AbituriyentPage() {
                       {subject && <span className="text-zinc-500"> · {subject.name}</span>}
                     </span>
                     <span className="shrink-0 tabular-nums">
-                      {r.points != null && r.max_points != null && r.mode === "mock" && exam?.id === "dtm" ? (
-                        <>
-                          {r.points} <span className="text-zinc-500">/ {r.max_points} ball</span>
-                        </>
-                      ) : r.mode === "writing" ? (
-                        <>{r.correct}/100</>
-                      ) : (
-                        <>
-                          {r.correct}/{r.total}
-                          {pct != null && <span className={`ml-2 ${pct >= 70 ? "text-emerald-300" : "text-amber-300"}`}>{pct}%</span>}
-                        </>
-                      )}
+                      {r.correct}/{r.total}
+                      {pct != null && <span className={`ml-2 ${pct >= 70 ? "text-emerald-300" : "text-amber-300"}`}>{pct}%</span>}
                     </span>
                   </li>
                 );
@@ -101,10 +88,6 @@ export default function AbituriyentPage() {
         </section>
       )}
 
-      <p className="mt-8 text-sm text-zinc-500">
-        Mashq savollari ikki manbadan: admin yuklagan savollar bazasi va AI har safar yangidan tuzadigan savollar. AI savollari rasmiy imtihon
-        savollari emas — ular mavzuni mustahkamlash uchun.
-      </p>
     </PageWrap>
   );
 }

@@ -9,8 +9,7 @@ import { Group, Pill } from "@/components/ui/Pills";
 import { Spinner } from "@/components/LoadingScreen";
 import { modules } from "@/lib/modules";
 import { logActivity } from "@/lib/activity";
-import { DIFFICULTIES, generateQuiz, type Difficulty, type QuizRequest } from "@/lib/quiz-client";
-import type { QuizLang } from "@/lib/exams";
+import { DIFFICULTIES, generateQuiz, type Difficulty, type QuizLang, type QuizRequest } from "@/lib/quiz-client";
 import type { TestQuestion } from "@/lib/quiz";
 
 const LANGS: { id: QuizLang; label: string }[] = [

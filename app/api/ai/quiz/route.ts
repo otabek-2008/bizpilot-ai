@@ -1,7 +1,6 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { FALLBACK, MODEL, aiErrorMessage, authorize, client } from "@/lib/ai-server";
-import { LANG_NAME, examById, subjectOf } from "@/lib/exams";
 import { isValidQuestion, shuffleOptions } from "@/lib/quiz";
 
 export const maxDuration = 300;
@@ -13,14 +12,11 @@ const Input = z
     count: z.number().int().min(3).max(30),
     difficulty: z.enum(["oson", "orta", "qiyin"]),
     lang: z.enum(["uz", "ru", "en"]),
-    exam: z.string().max(20).optional(),
-    subject: z.string().max(40).optional(),
   })
-  .refine((v) => v.topic || v.text || (v.exam && v.subject));
+  .refine((v) => v.topic || v.text);
 
 const Result = z.object({
   title: z.string(),
-  passage: z.string().nullable(),
   questions: z.array(
     z.object({
       question: z.string(),
@@ -30,6 +26,8 @@ const Result = z.object({
     }),
   ),
 });
+
+const LANG_NAME = { uz: "o'zbek (lotin)", ru: "rus", en: "ingliz" };
 
 const LEVEL = { oson: "oson (asosiy tushunchalar)", orta: "o'rta (imtihon darajasi)", qiyin: "qiyin (eng murakkab imtihon savollari darajasi)" };
 
@@ -43,7 +41,6 @@ Qoidalar:
 - Formulalarni LaTeX'siz, oddiy matnda yozing: x², √2, π, ≤, ≥, ½, a/b.
 - Savollar takrorlanmasin va mavzuning turli jihatlarini qamrab olsin.
 - Matn berilgan bo'lsa — savollar faqat shu matn mazmuniga asoslansin.
-- passage — faqat "Reading" (umumiy matn) so'ralganda: savollar shu matnga tayanadi. Boshqa hollarda null.
 - title — test uchun qisqa nom.`;
 
 export async function POST(request: Request) {
@@ -54,21 +51,12 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "Mavzu yoki matn kiriting (matn 15 000 belgigacha)." }, { status: 400 });
   const v = parsed.data;
 
-  const exam = v.exam ? examById(v.exam) : undefined;
-  const subject = exam && v.subject ? subjectOf(exam, v.subject) : undefined;
-  const reading = !!subject && /reading/i.test(subject.id) && exam?.id !== "sat";
-
   const lines = [
     `Til: ${LANG_NAME[v.lang]}. Savollar, variantlar va izohlar shu tilda bo'lsin.`,
     `Savollar soni: ${v.count}.`,
     `Qiyinlik: ${LEVEL[v.difficulty]}.`,
   ];
-  if (exam) lines.push(`Imtihon: ${exam.name}. Savollar uslubi va darajasi shu imtihonga mos bo'lsin.`);
-  if (subject) lines.push(`Fan/bo'lim: ${subject.name}.`);
   if (v.topic) lines.push(`Mavzu: ${v.topic}.`);
-  else if (subject) lines.push(`Mavzular: ${subject.topics.join(", ")} — aralash.`);
-  if (reading) lines.push("Reading: avval 350–600 so'zlik akademik matn (passage) yozing, keyin barcha savollar shu matn bo'yicha bo'lsin.");
-  if (exam?.id === "sat" && subject?.id === "rw") lines.push("SAT Reading & Writing uslubi: har bir savolda 25–150 so'zlik qisqa matn va unga bitta savol (matn savol ichida).");
   if (v.text) lines.push(`\nQuyidagi matn asosida savollar tuzing:\n<matn>\n${v.text}\n</matn>`);
 
   try {
@@ -94,7 +82,7 @@ export async function POST(request: Request) {
       .map((q) => shuffleOptions(q));
     if (!questions.length) return Response.json({ error: "AI yaroqli savol tuza olmadi. Qayta urinib ko'ring." }, { status: 502 });
 
-    return Response.json({ title: out.title, passage: reading ? out.passage : null, questions });
+    return Response.json({ title: out.title, questions });
   } catch (error) {
     const { message, status } = aiErrorMessage(error);
     return Response.json({ error: message }, { status });

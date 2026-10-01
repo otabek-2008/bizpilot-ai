@@ -198,7 +198,7 @@ export const modules: Record<ModuleId, AppModule> = {
     id: "abituriyent",
     title: "Abituriyent",
     short: "Abituriyent",
-    desc: "DTM, Milliy sertifikat, IELTS, CEFR va SAT: materiallar, mashq savollari, mock testlar va Writing tekshiruvi",
+    desc: "DTM, Milliy sertifikat, IELTS, CEFR va SAT bo'yicha testlar va o'quv materiallari",
     href: "/dashboard/abituriyent",
     icon: GraduationCap,
     from: "#22c55e",

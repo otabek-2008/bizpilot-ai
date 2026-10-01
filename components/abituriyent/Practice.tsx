@@ -1,19 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Database, Play, Sparkles } from "lucide-react";
+import { Play } from "lucide-react";
 import { Group, Pill } from "@/components/ui/Pills";
 import { Spinner } from "@/components/LoadingScreen";
-import { DIFFICULTIES, generateQuiz, type Difficulty } from "@/lib/quiz-client";
 import { pickQuestions, type QuestionRef } from "@/lib/exam-db";
 import type { Exam } from "@/lib/exams";
 import type { ExamSession } from "./types";
 
-const COUNTS = [5, 10, 20, 30];
+const COUNTS = [10, 20, 30, 50];
 
-type Source = "bank" | "ai";
-
-/** Fan bo'yicha mashq: admin bazasidan yoki AI yangi savollar tuzadi. */
+/** Fan bo'yicha test: savollar bazasidan tasodifiy to'plam. */
 export default function Practice({
   exam,
   index,
@@ -25,36 +22,29 @@ export default function Practice({
   onStart: (s: ExamSession) => void;
   onError: (message: string) => void;
 }) {
-  const [subjectId, setSubjectId] = useState(exam.subjects[0].id);
-  const [topic, setTopic] = useState<string | null>(null);
-  const [count, setCount] = useState(10);
-  const [difficulty, setDifficulty] = useState<Difficulty>("orta");
-  const [chosenSource, setSource] = useState<Source | null>(null);
+  const counts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const q of index) m.set(q.subject, (m.get(q.subject) ?? 0) + 1);
+    return m;
+  }, [index]);
+  // Faqat savoli bor fanlar ko'rsatiladi
+  const subjects = exam.subjects.filter((s) => counts.has(s.id));
+  const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? "");
+  const [count, setCount] = useState(20);
   const [loading, setLoading] = useState(false);
 
-  const subject = exam.subjects.find((s) => s.id === subjectId)!;
-  const inBank = useMemo(() => index.filter((q) => q.subject === subjectId).length, [index, subjectId]);
-  // Bazada savol bo'lsa — standart manba baza, aks holda AI
-  const source: Source = chosenSource ?? (inBank > 0 ? "bank" : "ai");
+  const subject = subjects.find((s) => s.id === subjectId) ?? subjects[0];
+  const available = subject ? (counts.get(subject.id) ?? 0) : 0;
 
   async function build(): Promise<ExamSession> {
-    const title = `${exam.short} · ${subject.name}${topic ? ` · ${topic}` : ""}`;
-    const questions =
-      source === "bank"
-        ? await pickQuestions(index, subjectId, count)
-        : (
-            await generateQuiz(
-              { exam: exam.id, subject: subjectId, topic: topic ?? undefined, count, difficulty, lang: subject.lang },
-              { meta: topic ?? subject.name },
-            )
-          ).questions;
+    const questions = await pickQuestions(index, subject.id, count);
     if (!questions.length) throw new Error("Bu fanda savol topilmadi.");
     return {
       key: crypto.randomUUID(),
-      title,
+      title: `${exam.short} · ${subject.name}`,
       questions,
-      mode: source === "bank" ? "practice" : "ai",
-      subject: subjectId,
+      mode: "practice",
+      subject: subject.id,
       timeLimitSec: null,
       showPoints: false,
       restart: async () => onStart(await build()),
@@ -73,114 +63,34 @@ export default function Practice({
     }
   }
 
+  if (!subject) return null;
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <div className="glass space-y-6 rounded-3xl p-6">
+      <div className="glass rounded-3xl p-6">
         <Group label="Fan / bo'lim">
-          {exam.subjects.map((s) => (
-            <Pill
-              key={s.id}
-              active={subjectId === s.id}
-              onClick={() => {
-                setSubjectId(s.id);
-                setTopic(null);
-                setSource(null);
-              }}
-            >
-              {s.name}
-            </Pill>
-          ))}
-        </Group>
-
-        <Group label="Mavzu (ixtiyoriy — tanlanmasa aralash)">
-          {subject.topics.map((t) => (
-            <Pill key={t} active={topic === t} onClick={() => setTopic(topic === t ? null : t)}>
-              {t}
+          {subjects.map((s) => (
+            <Pill key={s.id} active={subject.id === s.id} onClick={() => setSubjectId(s.id)}>
+              {s.name} <span className="text-zinc-500">{counts.get(s.id)}</span>
             </Pill>
           ))}
         </Group>
       </div>
 
       <aside className="glass h-fit space-y-5 rounded-3xl p-6">
-        <div>
-          <p className="mb-2 text-sm text-zinc-400">Savollar manbasi</p>
-          <div className="grid gap-2">
-            <SourceButton
-              active={source === "bank"}
-              disabled={inBank === 0}
-              onClick={() => setSource("bank")}
-              icon={<Database size={16} />}
-              title="Savollar bazasi"
-              hint={inBank ? `${inBank} ta savol` : "Hozircha savol yo'q"}
-            />
-            <SourceButton
-              active={source === "ai"}
-              onClick={() => setSource("ai")}
-              icon={<Sparkles size={16} />}
-              title="AI yangi savollar"
-              hint="Har safar yangi to'plam"
-            />
-          </div>
-          {source === "bank" && topic && <p className="mt-2 text-xs text-zinc-500">Bazadan tanlashda mavzu hisobga olinmaydi.</p>}
-        </div>
-
         <Group label="Savollar soni">
-          {COUNTS.map((n) => (
+          {COUNTS.filter((n, i) => n <= available || i === 0).map((n) => (
             <Pill key={n} active={count === n} onClick={() => setCount(n)}>
-              {n}
+              {Math.min(n, available)}
             </Pill>
           ))}
         </Group>
-
-        {source === "ai" && (
-          <Group label="Qiyinlik">
-            {DIFFICULTIES.map((d) => (
-              <Pill key={d.id} active={difficulty === d.id} onClick={() => setDifficulty(d.id)}>
-                {d.label}
-              </Pill>
-            ))}
-          </Group>
-        )}
-
         <button onClick={() => void start()} disabled={loading} className="btn-accent w-full py-3">
           {loading ? <Spinner className="size-4" /> : <Play size={17} />}
-          {loading ? (source === "ai" ? "AI savollar tuzmoqda…" : "Yuklanmoqda…") : "Mashqni boshlash"}
+          {loading ? "Yuklanmoqda…" : "Testni boshlash"}
         </button>
-        <p className="text-xs leading-relaxed text-zinc-500">Har javobdan keyin to&apos;g&apos;ri yoki noto&apos;g&apos;ri ekani va izoh ko&apos;rsatiladi.</p>
+        <p className="text-xs leading-relaxed text-zinc-500">Har javobdan keyin to&apos;g&apos;ri yoki noto&apos;g&apos;ri ekani ko&apos;rsatiladi.</p>
       </aside>
     </div>
-  );
-}
-
-export function SourceButton({
-  active,
-  disabled,
-  onClick,
-  icon,
-  title,
-  hint,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  hint: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition disabled:opacity-40 ${
-        active ? "accent-soft border-[color:var(--accent)]" : "border-white/10 hover:border-white/25"
-      }`}
-    >
-      <span className="text-[var(--accent)]">{icon}</span>
-      <span>
-        <span className="block text-sm font-medium">{title}</span>
-        <span className="block text-xs text-zinc-500">{hint}</span>
-      </span>
-    </button>
   );
 }
