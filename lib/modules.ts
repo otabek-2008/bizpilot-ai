@@ -1,6 +1,7 @@
 import {
   BotMessageSquare,
   Briefcase,
+  CarFront,
   CaseSensitive,
   FileStack,
   FileUser,
@@ -40,6 +41,7 @@ export type ModuleId =
   | "essay"
   | "cv"
   | "presentation"
+  | "prava"
   | "chat"
   | "profile"
   | "contact";
@@ -184,6 +186,17 @@ export const modules: Record<ModuleId, AppModule> = {
     enter: "skew",
     badge: "Tez kunda",
   },
+  prava: {
+    id: "prava",
+    title: "Prava testi",
+    short: "Prava testi",
+    desc: "Haydovchilik guvohnomasi nazariy imtihoniga tayyorgarlik: biletlar, imtihon rejimi va xatolar ustida ishlash",
+    href: "/dashboard/prava",
+    icon: CarFront,
+    from: "#facc15",
+    to: "#ef4444",
+    enter: "zoom",
+  },
   chat: {
     id: "chat",
     title: "Chat / Yordam",
@@ -224,6 +237,7 @@ export const navGroups: { label?: string; items: ModuleId[] }[] = [
   { label: "Matn vositalari", items: ["case", "translit", "spellcheck"] },
   { label: "Rasm vositalari", items: ["photo"] },
   { label: "Hujjat vositalari", items: ["documents", "cv"] },
+  { label: "Imtihonlar", items: ["prava"] },
   { label: "AI vositalar", items: ["assistant", "essay", "business", "presentation"] },
   { label: "Yordam", items: ["chat", "contact"] },
   { label: "Hisob", items: ["profile"] },
@@ -233,6 +247,7 @@ export const navGroups: { label?: string; items: ModuleId[] }[] = [
 export const toolIds: ModuleId[] = [
   "assistant",
   "essay",
+  "prava",
   "spellcheck",
   "case",
   "translit",

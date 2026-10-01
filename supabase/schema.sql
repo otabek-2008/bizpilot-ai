@@ -151,3 +151,91 @@ values ('admin-files', 'admin-files', false, 52428800)
 on conflict (id) do nothing;
 
 notify pgrst, 'reload schema';
+
+-- =====================================================================
+-- Prava (haydovchilik guvohnomasi) testlari
+-- =====================================================================
+
+-- Savollar bazasi admin panel orqali to'ldiriladi. correct — to'g'ri javob indeksi (0 dan).
+create table if not exists public.prava_questions (
+  id bigint generated always as identity primary key,
+  ticket int check (ticket between 1 and 9999),
+  position int check (position between 1 and 9999),
+  topic text check (char_length(topic) <= 120),
+  question text not null check (char_length(question) between 1 and 2000),
+  options jsonb not null check (jsonb_typeof(options) = 'array' and jsonb_array_length(options) between 2 and 6),
+  correct smallint not null check (correct >= 0 and correct < jsonb_array_length(options)),
+  explanation text check (char_length(explanation) <= 3000),
+  image text,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists prava_questions_ticket_idx on public.prava_questions (ticket, position);
+
+alter table public.prava_questions enable row level security;
+
+drop policy if exists "Users read active prava questions" on public.prava_questions;
+create policy "Users read active prava questions"
+  on public.prava_questions for select to authenticated
+  using (active);
+
+-- Foydalanuvchining xato javoblari ("Xatolarim" bo'limi): xato → qo'shiladi, keyin to'g'ri javob → o'chiriladi.
+create table if not exists public.prava_mistakes (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  question_id bigint not null references public.prava_questions(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, question_id)
+);
+
+alter table public.prava_mistakes enable row level security;
+
+drop policy if exists "Users read own prava mistakes" on public.prava_mistakes;
+create policy "Users read own prava mistakes"
+  on public.prava_mistakes for select using (auth.uid() = user_id);
+
+drop policy if exists "Users add own prava mistakes" on public.prava_mistakes;
+create policy "Users add own prava mistakes"
+  on public.prava_mistakes for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users remove own prava mistakes" on public.prava_mistakes;
+create policy "Users remove own prava mistakes"
+  on public.prava_mistakes for delete using (auth.uid() = user_id);
+
+-- Test natijalari (bilet bo'yicha eng so'nggi natija va admin statistikasi uchun).
+create table if not exists public.prava_results (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  mode text not null check (mode in ('exam', 'ticket', 'topic', 'mistakes')),
+  ticket int,
+  topic text,
+  total int not null check (total between 1 and 1000),
+  correct int not null check (correct between 0 and total),
+  passed boolean,
+  duration_sec int check (duration_sec >= 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists prava_results_user_idx on public.prava_results (user_id, created_at desc);
+
+alter table public.prava_results enable row level security;
+
+drop policy if exists "Users read own prava results" on public.prava_results;
+create policy "Users read own prava results"
+  on public.prava_results for select using (auth.uid() = user_id);
+
+drop policy if exists "Users add own prava results" on public.prava_results;
+create policy "Users add own prava results"
+  on public.prava_results for insert with check (auth.uid() = user_id);
+
+grant select on public.prava_questions to authenticated;
+grant select, insert, delete on public.prava_mistakes to authenticated;
+grant select, insert on public.prava_results to authenticated;
+
+-- Savol rasmlari uchun ochiq bucket (yuklash faqat admin panel orqali).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('prava-images', 'prava-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+on conflict (id) do nothing;
+
+notify pgrst, 'reload schema';

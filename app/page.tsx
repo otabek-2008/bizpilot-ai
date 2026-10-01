@@ -103,7 +103,7 @@ export default function HomePage() {
           </h1>
 
           <p className="animate-fade-up mx-auto mt-7 max-w-2xl text-lg text-zinc-400 [animation-delay:160ms] sm:text-xl">
-            Lotin ↔ Kirill, 3×4 rasm, PDF ↔ Word, harf registri va AI yordamida biznes reja — hammasi
+            Prava testlari, Lotin ↔ Kirill, 3×4 rasm, PDF ↔ Word, harf registri va AI yordamida biznes reja — hammasi
             {" "}{site.name}da, o&apos;zbek tilida.
           </p>
 

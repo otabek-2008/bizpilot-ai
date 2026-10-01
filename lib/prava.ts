@@ -1,0 +1,282 @@
+// Prava (haydovchilik guvohnomasi) nazariy test moduli: savol turi, imtihon qoidalari va savollarni import qilish.
+// Savollar bazasi admin panel orqali to'ldiriladi — bu yerda hech qanday rasmiy savol yo'q.
+
+export const PRAVA_BUCKET = "prava-images";
+
+/** Imtihon qoidalari (DYHXX nazariy imtihoni kabi): 20 savol, 25 daqiqa, ko'pi bilan 2 ta xato. */
+export const EXAM = { questions: 20, minutes: 25, maxMistakes: 2 } as const;
+
+export const MIN_OPTIONS = 2;
+export const MAX_OPTIONS = 6;
+
+export type PravaQuestion = {
+  id: number;
+  ticket: number | null;
+  position: number | null;
+  topic: string | null;
+  question: string;
+  options: string[];
+  /** To'g'ri javob indeksi (0 dan boshlanadi). */
+  correct: number;
+  explanation: string | null;
+  /** prava-images bucket ichidagi yo'l. */
+  image: string | null;
+  active: boolean;
+};
+
+export type PravaMode = "exam" | "ticket" | "topic" | "mistakes";
+
+/** Bazaga yoziladigan (id'siz) savol. */
+export type QuestionInput = Omit<PravaQuestion, "id">;
+
+const LETTERS = "ABCDEF";
+
+const clean = (v: unknown) => (v == null ? "" : String(v)).replace(/\r\n?/g, "\n").trim();
+
+function intOrNull(v: unknown, field: string): number | null {
+  const s = clean(v);
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isInteger(n) || n < 1 || n > 9999) throw new Error(`${field} musbat butun son bo'lishi kerak ("${s}").`);
+  return n;
+}
+
+/** "2", "B", "b" → 1. Raqamlar 1 dan boshlanadi (odamlar shunday yozadi). */
+export function parseCorrect(v: unknown, optionCount: number): number {
+  const s = clean(v).toUpperCase();
+  let idx = -1;
+  if (/^\d+$/.test(s)) idx = Number(s) - 1;
+  else if (s.length === 1 && LETTERS.includes(s)) idx = LETTERS.indexOf(s);
+  if (idx < 0 || idx >= optionCount) {
+    throw new Error(`To'g'ri javob "${s || "bo'sh"}" — 1..${optionCount} yoki ${LETTERS.slice(0, optionCount).split("").join("/")} bo'lishi kerak.`);
+  }
+  return idx;
+}
+
+/** Savolni tekshiradi va tozalaydi; xato bo'lsa tushunarli matn bilan Error tashlaydi. */
+export function normalizeQuestion(raw: {
+  ticket?: unknown;
+  position?: unknown;
+  topic?: unknown;
+  question?: unknown;
+  options?: unknown[];
+  correct?: unknown;
+  /** true bo'lsa correct 0 dan boshlanadi (formadan), aks holda 1 dan yoki harf (importdan). */
+  correctIsIndex?: boolean;
+  explanation?: unknown;
+  image?: unknown;
+  active?: unknown;
+}): QuestionInput {
+  const question = clean(raw.question);
+  if (!question) throw new Error("Savol matni bo'sh.");
+  if (question.length > 2000) throw new Error("Savol matni juda uzun (2000 belgidan oshmasin).");
+
+  // To'g'ri javob bo'sh variantlar olib tashlanishidan oldingi o'rinni bildiradi (masalan "javob3" ustuni).
+  const rawOptions = (raw.options ?? []).map(clean);
+  const options = rawOptions.filter(Boolean);
+  if (options.length < MIN_OPTIONS) throw new Error(`Kamida ${MIN_OPTIONS} ta javob varianti kerak.`);
+  if (options.length > MAX_OPTIONS) throw new Error(`Ko'pi bilan ${MAX_OPTIONS} ta javob varianti bo'lishi mumkin.`);
+  if (options.some((o) => o.length > 500)) throw new Error("Javob varianti juda uzun (500 belgidan oshmasin).");
+
+  let rawIndex: number;
+  if (raw.correctIsIndex) {
+    rawIndex = Number(raw.correct);
+    if (!Number.isInteger(rawIndex) || rawIndex < 0 || rawIndex >= rawOptions.length) throw new Error("To'g'ri javobni belgilang.");
+  } else {
+    rawIndex = parseCorrect(raw.correct, Math.min(rawOptions.length, MAX_OPTIONS));
+  }
+  if (!rawOptions[rawIndex]) throw new Error(`To'g'ri javob deb belgilangan ${rawIndex + 1}-variant bo'sh.`);
+  const correct = rawOptions.slice(0, rawIndex).filter(Boolean).length;
+
+  const image = clean(raw.image).replace(/^\/+/, "");
+  if (image.split("/").some((p) => p === "..")) throw new Error("Rasm yo'li noto'g'ri.");
+  const topic = clean(raw.topic);
+  const explanation = clean(raw.explanation);
+
+  return {
+    ticket: intOrNull(raw.ticket, "Bilet raqami"),
+    position: intOrNull(raw.position, "Tartib raqami"),
+    topic: topic ? topic.slice(0, 120) : null,
+    question,
+    options,
+    correct,
+    explanation: explanation ? explanation.slice(0, 3000) : null,
+    image: image || null,
+    active: raw.active == null || raw.active === "" ? true : !/^(0|false|yo'q|yoq|no)$/i.test(clean(raw.active)),
+  };
+}
+
+// ---------------- Import (CSV / JSON) ----------------
+
+/** RFC 4180 CSV: qo'shtirnoq ichidagi vergul va yangi qatorlar, "" → ". Ajratgich avtomatik (; , yoki tab). */
+export function parseCsv(text: string): string[][] {
+  const src = text.replace(/^﻿/, "");
+  const firstLine = src.split(/\r?\n/, 1)[0];
+  const counts = [";", ",", "\t"].map((d) => [d, firstLine.split(d).length] as const);
+  const delim = counts.sort((a, b) => b[1] - a[1])[0][0];
+
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (quoted) {
+      if (c === '"') {
+        if (src[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else quoted = false;
+      } else cell += c;
+    } else if (c === '"' && cell === "") quoted = true;
+    else if (c === delim) {
+      row.push(cell);
+      cell = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && src[i + 1] === "\n") i++;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else cell += c;
+  }
+  if (cell !== "" || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter((r) => r.some((c) => c.trim()));
+}
+
+// Ustun nomlari: o'zbekcha (apostrofsiz ham) va inglizcha.
+const HEADER_ALIASES: Record<string, string> = {
+  bilet: "ticket", ticket: "ticket",
+  tartib: "position", raqam: "position", position: "position", no: "position",
+  mavzu: "topic", topic: "topic",
+  savol: "question", question: "question",
+  togri: "correct", "to'g'ri": "correct", "to‘g‘ri": "correct", correct: "correct", answer: "correct",
+  izoh: "explanation", explanation: "explanation",
+  rasm: "image", image: "image",
+  faol: "active", active: "active",
+};
+
+function headerKey(h: string): string | null {
+  const k = h.trim().toLowerCase().replace(/\s+/g, "");
+  if (HEADER_ALIASES[k]) return HEADER_ALIASES[k];
+  // javob1..javob6, variant1, option1, yoki A..F
+  const m = k.match(/^(?:javob|variant|option|answer)_?(\d)$/);
+  if (m && Number(m[1]) >= 1 && Number(m[1]) <= MAX_OPTIONS) return `opt${Number(m[1]) - 1}`;
+  if (k.length === 1 && LETTERS.includes(k.toUpperCase())) return `opt${LETTERS.indexOf(k.toUpperCase())}`;
+  return null;
+}
+
+export type ImportResult = { questions: QuestionInput[]; errors: string[] };
+
+function fromCsv(text: string): ImportResult {
+  const rows = parseCsv(text);
+  if (rows.length < 2) return { questions: [], errors: ["Faylda sarlavha qatori va kamida bitta savol bo'lishi kerak."] };
+  const keys = rows[0].map(headerKey);
+  if (!keys.includes("question")) return { questions: [], errors: ['Sarlavhada "savol" ustuni topilmadi.'] };
+  if (!keys.some((k) => k?.startsWith("opt"))) return { questions: [], errors: ['Sarlavhada "javob1", "javob2", ... ustunlari topilmadi.'] };
+  if (!keys.includes("correct")) return { questions: [], errors: ['Sarlavhada "togri" ustuni topilmadi.'] };
+
+  const questions: QuestionInput[] = [];
+  const errors: string[] = [];
+  rows.slice(1).forEach((cells, i) => {
+    const rec: Record<string, string> = {};
+    keys.forEach((k, j) => {
+      if (k) rec[k] = cells[j] ?? "";
+    });
+    const options = Array.from({ length: MAX_OPTIONS }, (_, j) => rec[`opt${j}`] ?? "");
+    try {
+      questions.push(normalizeQuestion({ ...rec, options }));
+    } catch (e) {
+      errors.push(`${i + 2}-qator: ${(e as Error).message}`);
+    }
+  });
+  return { questions, errors };
+}
+
+function fromJson(text: string): ImportResult {
+  let data: unknown;
+  try {
+    data = JSON.parse(text.replace(/^﻿/, ""));
+  } catch (e) {
+    return { questions: [], errors: [`JSON xato: ${(e as Error).message}`] };
+  }
+  if (!Array.isArray(data)) return { questions: [], errors: ["JSON ro'yxat ([ ... ]) bo'lishi kerak."] };
+
+  const questions: QuestionInput[] = [];
+  const errors: string[] = [];
+  data.forEach((item, i) => {
+    try {
+      if (!item || typeof item !== "object") throw new Error("obyekt emas.");
+      const o = item as Record<string, unknown>;
+      const options = o.javoblar ?? o.variantlar ?? o.options ?? o.answers;
+      if (!Array.isArray(options)) throw new Error('"javoblar" ro\'yxati topilmadi.');
+      questions.push(
+        normalizeQuestion({
+          ticket: o.bilet ?? o.ticket,
+          position: o.tartib ?? o.position,
+          topic: o.mavzu ?? o.topic,
+          question: o.savol ?? o.question,
+          options,
+          correct: o.togri ?? o["to'g'ri"] ?? o.correct,
+          explanation: o.izoh ?? o.explanation,
+          image: o.rasm ?? o.image,
+          active: o.faol ?? o.active,
+        }),
+      );
+    } catch (e) {
+      errors.push(`${i + 1}-savol: ${(e as Error).message}`);
+    }
+  });
+  return { questions, errors };
+}
+
+/** Fayl matnini (CSV yoki JSON) savollarga aylantiradi. Xato qatorlar o'tkazib yuboriladi va ro'yxatda qaytadi. */
+export function parseImport(text: string): ImportResult {
+  const t = text.replace(/^﻿/, "").trimStart();
+  if (!t) return { questions: [], errors: ["Fayl bo'sh."] };
+  return t.startsWith("[") ? fromJson(t) : fromCsv(t);
+}
+
+/** Admin namunasi — rasmiy savol emas, faqat format ko'rsatkichi. */
+export const CSV_TEMPLATE =
+  "\uFEFFbilet;tartib;mavzu;savol;javob1;javob2;javob3;javob4;javob5;javob6;togri;izoh;rasm\n" +
+  '1;1;Mavzu nomi;"Savol matni shu yerda (ichida ; bo\'lsa, qo\'shtirnoqqa oling)";1-javob;2-javob;3-javob;;;;2;Izoh — ixtiyoriy;rasm-fayli.jpg\n';
+
+// ---------------- Test ----------------
+
+/** Fisher–Yates; `random` testlarda almashtiriladi. */
+export function shuffle<T>(items: readonly T[], random = Math.random): T[] {
+  const a = [...items];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/** Bilet/mavzu savollari tartibi: avval tartib raqami, keyin id. */
+export const byPosition = (a: PravaQuestion, b: PravaQuestion) =>
+  (a.position ?? Infinity) - (b.position ?? Infinity) || a.id - b.id;
+
+export type Answers = Record<number, number>;
+
+export function score(questions: PravaQuestion[], answers: Answers) {
+  let correct = 0;
+  let wrong = 0;
+  for (const q of questions) {
+    const a = answers[q.id];
+    if (a == null) continue;
+    if (a === q.correct) correct++;
+    else wrong++;
+  }
+  return { correct, wrong, answered: correct + wrong, total: questions.length };
+}
+
+/** Imtihon: xatolar chegaradan oshmasa va hamma savolga javob berilgan bo'lsa — o'tdi. */
+export function examPassed(questions: PravaQuestion[], answers: Answers): boolean {
+  const s = score(questions, answers);
+  return s.wrong <= EXAM.maxMistakes && s.answered === s.total;
+}

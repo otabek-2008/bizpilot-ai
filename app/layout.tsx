@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 const description =
-  "CampusAI — O'zbekistondagi talabalar uchun bepul AI platforma: AI yordamchi, referat va esse yozish, imlo tekshiruvchi, CV, Lotin ↔ Kirill, 3×4 rasm, PDF ↔ Word konvertori.";
+  "CampusAI — O'zbekistondagi talabalar uchun bepul AI platforma: AI yordamchi, referat va esse yozish, imlo tekshiruvchi, prava testlari, CV, Lotin ↔ Kirill, 3×4 rasm, PDF ↔ Word konvertori.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -36,6 +36,8 @@ export const metadata: Metadata = {
     "PDF Word konvertor",
     "imlo tekshirish",
     "CV yaratish",
+    "prava test",
+    "prava biletlar",
     "o'zbekcha AI",
   ],
   alternates: { canonical: "/" },

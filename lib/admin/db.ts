@@ -13,7 +13,7 @@ export function adminDb(): SupabaseClient {
 }
 
 export const ADMIN_BUCKET = "admin-files";
-export const BUCKETS = [ADMIN_BUCKET, "avatars"] as const;
+export const BUCKETS = [ADMIN_BUCKET, "prava-images", "avatars"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 export const isBucket = (b: string): b is Bucket => (BUCKETS as readonly string[]).includes(b);
 

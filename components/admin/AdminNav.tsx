@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, FolderOpen, LayoutDashboard, LogOut, MessagesSquare, ShieldCheck, Users } from "lucide-react";
+import { Activity, CarFront, FolderOpen, LayoutDashboard, LogOut, MessagesSquare, ShieldCheck, Users } from "lucide-react";
 import { logoutAction } from "@/app/admin/actions";
 
 const links = [
   { href: "/admin", label: "Umumiy", icon: LayoutDashboard },
   { href: "/admin/users", label: "Foydalanuvchilar", icon: Users },
   { href: "/admin/messages", label: "Xabarlar", icon: MessagesSquare },
+  { href: "/admin/prava", label: "Prava savollari", icon: CarFront },
   { href: "/admin/activity", label: "Faoliyat", icon: Activity },
   { href: "/admin/files", label: "Fayllar", icon: FolderOpen },
 ];

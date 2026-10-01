@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { assertAdmin, checkLogin, logout } from "@/lib/admin/auth";
 import { adminDb, isBucket, type Bucket } from "@/lib/admin/db";
 import { extOf } from "@/lib/admin/files";
+import { normalizeQuestion, type QuestionInput } from "@/lib/prava";
 
 // Har bir funksiya POST orqali to'g'ridan-to'g'ri chaqirilishi mumkin — shuning uchun hammasida assertAdmin().
 
@@ -165,4 +166,80 @@ export async function saveTextFileAction(_prev: FormState, fd: FormData): Promis
   }
   refresh();
   return { ok: "Saqlandi." };
+}
+
+// ---------------- Prava savollari ----------------
+
+export async function saveQuestionAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  await assertAdmin();
+  const id = str(fd, "id");
+  let row: QuestionInput;
+  try {
+    row = normalizeQuestion({
+      ticket: fd.get("ticket"),
+      position: fd.get("position"),
+      topic: fd.get("topic"),
+      question: fd.get("question"),
+      options: fd.getAll("option"),
+      correct: fd.get("correct"),
+      correctIsIndex: true,
+      explanation: fd.get("explanation"),
+      image: fd.get("image"),
+      active: fd.get("active") ? "1" : "0",
+    });
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
+  const table = adminDb().from("prava_questions");
+  const { data, error } = id
+    ? await table.update({ ...row, updated_at: new Date().toISOString() }).eq("id", id).select("id").single()
+    : await table.insert(row).select("id").single();
+  if (error) return { error: `Saqlab bo'lmadi: ${error.message}` };
+  refresh();
+  if (!id) redirect(`/admin/prava/${data.id}?saved=1`);
+  return { ok: "Saqlandi." };
+}
+
+export async function deleteQuestionAction(fd: FormData) {
+  await assertAdmin();
+  const { error } = await adminDb().from("prava_questions").delete().eq("id", str(fd, "id"));
+  if (error) throw new Error(`Savolni o'chirib bo'lmadi: ${error.message}`);
+  refresh();
+  if (str(fd, "back")) redirect("/admin/prava");
+}
+
+export async function toggleQuestionAction(fd: FormData) {
+  await assertAdmin();
+  const { error } = await adminDb()
+    .from("prava_questions")
+    .update({ active: str(fd, "active") === "1", updated_at: new Date().toISOString() })
+    .eq("id", str(fd, "id"));
+  if (error) throw new Error(`Saqlab bo'lmadi: ${error.message}`);
+  refresh();
+}
+
+/** Brauzerda o'qilgan savollar bo'laklab yuboriladi (Server Action 1 MB chegarasi). Har biri qayta tekshiriladi. */
+export async function importQuestionsAction(rows: QuestionInput[], replaceAll: boolean): Promise<{ inserted: number }> {
+  await assertAdmin();
+  if (!Array.isArray(rows) || rows.length > 500) throw new Error("Bir martada ko'pi bilan 500 ta savol.");
+  const clean = rows.map((r, i) => {
+    try {
+      return normalizeQuestion({ ...r, correctIsIndex: true });
+    } catch (e) {
+      throw new Error(`${i + 1}-savol: ${(e as Error).message}`);
+    }
+  });
+
+  const db = adminDb();
+  if (replaceAll) {
+    const { error } = await db.from("prava_questions").delete().gte("id", 0);
+    if (error) throw new Error(`Eski savollarni o'chirib bo'lmadi: ${error.message}`);
+  }
+  if (clean.length) {
+    const { error } = await db.from("prava_questions").insert(clean);
+    if (error) throw new Error(`Saqlab bo'lmadi: ${error.message}`);
+  }
+  refresh();
+  return { inserted: clean.length };
 }

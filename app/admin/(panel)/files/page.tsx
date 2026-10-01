@@ -9,7 +9,11 @@ import { isEditable } from "@/lib/admin/files";
 
 export const metadata = { title: "Fayllar" };
 
-const BUCKET_LABEL: Record<string, string> = { "admin-files": "Admin hujjatlari", avatars: "Foydalanuvchi rasmlari" };
+const BUCKET_LABEL: Record<string, string> = {
+  "admin-files": "Admin hujjatlari",
+  "prava-images": "Prava rasmlari",
+  avatars: "Foydalanuvchi rasmlari",
+};
 
 function size(bytes?: number) {
   if (bytes == null) return "";
