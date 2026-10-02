@@ -28,6 +28,8 @@ const TELEGRAM_BOT_ID = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID ?? "";
 // eslint-disable-next-line @next/next/no-location-assign-relative-destination
 const goDashboard = () => window.location.assign("/dashboard");
 
+const USERNAME_RE = /^[a-zA-Z0-9_.]{3,30}$/;
+
 function friendly(message: string): string {
   const m = message.toLowerCase();
   if (m.includes("invalid login credentials")) return "Email yoki parol noto'g'ri.";
@@ -202,7 +204,12 @@ function EmailForm({
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
+  const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
+  const register = mode === "register";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -211,6 +218,20 @@ function EmailForm({
     if (!email.trim() || !password) {
       onError("Email va parolni kiriting.");
       return;
+    }
+    if (register) {
+      if (!username.trim() || !firstName.trim() || !lastName.trim()) {
+        onError("Username, ism va familiyani kiriting.");
+        return;
+      }
+      if (!USERNAME_RE.test(username.trim())) {
+        onError("Username 3–30 ta belgi: lotin harflari, raqamlar, _ yoki . bo'lsin.");
+        return;
+      }
+      if (password !== password2) {
+        onError("Parollar bir xil emas.");
+        return;
+      }
     }
     setLoading(true);
     try {
@@ -222,7 +243,15 @@ function EmailForm({
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: {
+              username: username.trim(),
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+              full_name: `${firstName.trim()} ${lastName.trim()}`,
+            },
+          },
         });
         if (error) return onError(friendly(error.message));
         if (data.session) goDashboard();
@@ -237,6 +266,42 @@ function EmailForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {register && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              aria-label="Ism"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Ism"
+              autoComplete="given-name"
+              maxLength={60}
+              disabled={loading || disabled}
+              className="field"
+            />
+            <input
+              aria-label="Familiya"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Familiya"
+              autoComplete="family-name"
+              maxLength={60}
+              disabled={loading || disabled}
+              className="field"
+            />
+          </div>
+          <input
+            aria-label="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username"
+            autoComplete="username"
+            maxLength={30}
+            disabled={loading || disabled}
+            className="field"
+          />
+        </>
+      )}
       <div className="relative">
         <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
         <input
@@ -260,6 +325,18 @@ function EmailForm({
         disabled={loading || disabled}
         className="field"
       />
+      {register && (
+        <input
+          type="password"
+          aria-label="Parolni takrorlang"
+          value={password2}
+          onChange={(e) => setPassword2(e.target.value)}
+          placeholder="Parolni takrorlang"
+          autoComplete="new-password"
+          disabled={loading || disabled}
+          className="field"
+        />
+      )}
       <button type="submit" disabled={loading || disabled} className="btn-primary w-full py-3.5">
         {loading ? <Spinner className="size-4" /> : null}
         {mode === "login" ? "Kirish" : "Hisob yaratish"}

@@ -3,6 +3,9 @@ import type { User } from "@supabase/supabase-js";
 // Profil ma'lumotlari Supabase user_metadata ichida saqlanadi.
 export type ProfileMeta = {
   full_name?: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
   bio?: string;
   university?: string;
   faculty?: string;
