@@ -29,6 +29,13 @@ const TELEGRAM_BOT_ID = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID ?? "";
 const goDashboard = () => window.location.assign("/dashboard");
 
 const USERNAME_RE = /^[a-zA-Z0-9_.]{3,30}$/;
+const USERNAME_TAKEN = "Bu username band. Boshqasini tanlang.";
+
+async function usernameFree(username: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc("username_available", { p_username: username.trim() });
+  // Tekshirib bo'lmasa to'xtatmaymiz — takrorlanishni baribir bazadagi unique index ushlaydi
+  return error ? true : data !== false;
+}
 
 function friendly(message: string): string {
   const m = message.toLowerCase();
@@ -240,6 +247,7 @@ function EmailForm({
         if (error) return onError(friendly(error.message));
         if (data.session) goDashboard();
       } else {
+        if (!(await usernameFree(username))) return onError(USERNAME_TAKEN);
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -253,7 +261,11 @@ function EmailForm({
             },
           },
         });
-        if (error) return onError(friendly(error.message));
+        if (error) {
+          // Tekshiruvdan keyin boshqa kimdir shu username'ni olib qo'ygan bo'lishi mumkin
+          if (!(await usernameFree(username))) return onError(USERNAME_TAKEN);
+          return onError(friendly(error.message));
+        }
         if (data.session) goDashboard();
         else onInfo("Tasdiqlash havolasi emailingizga yuborildi. Uni bosib, hisobingizni faollashtiring.");
       }

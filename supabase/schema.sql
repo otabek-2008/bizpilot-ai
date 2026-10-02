@@ -455,3 +455,50 @@ grant execute on function public.rating_me(text) to authenticated;
 grant execute on function public.rating_universities(text) to authenticated;
 
 notify pgrst, 'reload schema';
+
+
+-- ================= Username (takrorlanmas) =================
+-- Email orqali ro'yxatdan o'tishda kiritiladi (user_metadata.username). Katta-kichik harf farqlanmaydi: "Ali" va "ali" bir xil.
+-- Jadvalga to'g'ridan-to'g'ri ruxsat yo'q — faqat trigger yozadi va username_available() tekshiradi.
+create table if not exists public.usernames (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  username text not null check (username ~ '^[a-zA-Z0-9_.]{3,30}$'),
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists usernames_lower_idx on public.usernames (lower(username));
+
+alter table public.usernames enable row level security;
+
+create or replace function public.handle_new_user_username()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  u text := nullif(trim(new.raw_user_meta_data->>'username'), '');
+begin
+  -- Band bo'lsa unique index xato beradi va hisob yaratilmaydi
+  if u is not null then
+    insert into public.usernames (user_id, username) values (new.id, u);
+  end if;
+  return new;
+end
+$$;
+
+drop trigger if exists on_auth_user_username on auth.users;
+create trigger on_auth_user_username
+  after insert on auth.users
+  for each row execute function public.handle_new_user_username();
+
+create or replace function public.username_available(p_username text)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select not exists (select 1 from usernames where lower(username) = lower(trim(p_username)))
+$$;
+
+revoke all on function public.handle_new_user_username() from public, anon, authenticated;
+revoke all on function public.username_available(text) from public;
+grant execute on function public.username_available(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
