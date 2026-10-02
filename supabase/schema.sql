@@ -734,7 +734,32 @@ create policy "Users read own payments"
 
 grant select on public.payments to authenticated;
 
-/** To'lov tasdiqlanadi va obuna uzaytiriladi — bitta tranzaksiyada. Sinov kunlari kuyib ketmaydi. */
+-- Ikki provayder: Payme (payme_id orqali) va Octo (karta: Visa, Mastercard, Humo, Uzcard).
+alter table public.payments add column if not exists provider text not null default 'payme' check (provider in ('payme', 'octo'));
+alter table public.payments add column if not exists octo_uuid text;
+
+/** Obunani tarif muddatiga uzaytiradi (p_sign = 1) yoki qaytarib oladi (p_sign = -1). Sinov kunlari kuyib ketmaydi. */
+create or replace function public.extend_subscription(p_user uuid, p_plan text, p_sign int)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  span interval := case p_plan when 'year' then interval '365 days' else interval '30 days' end;
+begin
+  if p_sign > 0 then
+    insert into subscriptions (user_id, plan, paid_until, updated_at)
+    values (p_user, p_plan, greatest(now(), coalesce(trial_end(p_user), now())) + span, now())
+    on conflict (user_id) do update set
+      plan = excluded.plan,
+      paid_until = greatest(now(), coalesce(subscriptions.paid_until, now()), coalesce(trial_end(p_user), now())) + span,
+      updated_at = now();
+  else
+    update subscriptions set paid_until = paid_until - span, updated_at = now() where user_id = p_user;
+  end if;
+end
+$$;
+
+/** Payme: to'lov tasdiqlanadi va obuna uzaytiriladi — bitta tranzaksiyada. */
 create or replace function public.payme_perform(p_payme_id text, p_time bigint)
 returns setof public.payments
 language plpgsql security definer set search_path = public
@@ -745,26 +770,14 @@ begin
   update payments set state = 2, perform_time = p_time
    where payme_id = p_payme_id and state = 1
   returning * into p;
-  if p.id is null then
-    return query select * from payments where payme_id = p_payme_id;
-    return;
+  if p.id is not null then
+    perform extend_subscription(p.user_id, p.plan, 1);
   end if;
-  insert into subscriptions (user_id, plan, paid_until, updated_at)
-  values (
-    p.user_id, p.plan,
-    greatest(now(), coalesce(trial_end(p.user_id), now())) + case p.plan when 'year' then interval '365 days' else interval '30 days' end,
-    now()
-  )
-  on conflict (user_id) do update set
-    plan = excluded.plan,
-    paid_until = greatest(now(), coalesce(subscriptions.paid_until, now()), coalesce(trial_end(p.user_id), now()))
-                 + case p.plan when 'year' then interval '365 days' else interval '30 days' end,
-    updated_at = now();
-  return next p;
+  return query select * from payments where payme_id = p_payme_id;
 end
 $$;
 
-/** Bekor qilish; to'langan bo'lsa obuna muddati qaytarib olinadi. */
+/** Payme: bekor qilish; to'langan bo'lsa obuna muddati qaytarib olinadi. */
 create or replace function public.payme_cancel(p_payme_id text, p_time bigint, p_reason int)
 returns setof public.payments
 language plpgsql security definer set search_path = public
@@ -777,12 +790,28 @@ begin
    where payme_id = p_payme_id and state in (1, 2)
   returning * into p;
   if p.id is not null and p.state = -2 then
-    update subscriptions
-       set paid_until = paid_until - case p.plan when 'year' then interval '365 days' else interval '30 days' end,
-           updated_at = now()
-     where user_id = p.user_id;
+    perform extend_subscription(p.user_id, p.plan, -1);
   end if;
   return query select * from payments where payme_id = p_payme_id;
+end
+$$;
+
+/** Octo: to'lov muvaffaqiyatli bo'lsa (bir marta) obuna uzaytiriladi; true — shu chaqiruvda yoqildi. */
+create or replace function public.octo_complete(p_id bigint)
+returns boolean
+language plpgsql security definer set search_path = public
+as $$
+declare
+  p payments;
+begin
+  update payments set state = 2, perform_time = (extract(epoch from now()) * 1000)::bigint
+   where id = p_id and provider = 'octo' and state = 0
+  returning * into p;
+  if p.id is null then
+    return false;
+  end if;
+  perform extend_subscription(p.user_id, p.plan, 1);
+  return true;
 end
 $$;
 
@@ -791,6 +820,9 @@ revoke all on function public.user_has_access(uuid) from public, anon, authentic
 revoke all on function public.ai_take(uuid, int) from public, anon, authenticated;
 revoke all on function public.payme_perform(text, bigint) from public, anon, authenticated;
 revoke all on function public.payme_cancel(text, bigint, int) from public, anon, authenticated;
+revoke all on function public.extend_subscription(uuid, text, int) from public, anon, authenticated;
+revoke all on function public.octo_complete(bigint) from public, anon, authenticated;
+grant execute on function public.octo_complete(bigint) to service_role;
 revoke all on function public.has_access() from public, anon;
 revoke all on function public.my_access() from public, anon;
 grant execute on function public.has_access() to authenticated;

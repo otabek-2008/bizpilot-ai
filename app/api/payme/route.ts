@@ -84,7 +84,9 @@ async function orderFor(p: Record<string, unknown>): Promise<Payment> {
   const { data, error } = await db().from("payments").select("*").eq("id", orderId).maybeSingle();
   if (error) throw error;
   if (!data) throw new RpcError(E.order, "order_id");
-  const order = data as Payment;
+  const order = data as Payment & { provider: string };
+  // Karta (Octo) orqali yaratilgan buyurtmani Payme'da to'lab bo'lmaydi
+  if (order.provider !== "payme") throw new RpcError(E.order, "order_id");
   if (Number(p.amount) !== Number(order.amount)) throw new RpcError(E.amount);
   if (order.state === 2 || order.state === -2) throw new RpcError(E.order, "order_id");
   return order;

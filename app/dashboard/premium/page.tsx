@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Check, CheckCircle2, Clock, Crown, Gift, Loader2, XCircle } from "lucide-react";
+import { Check, CheckCircle2, Clock, CreditCard, Crown, Gift, Loader2, Wallet, XCircle } from "lucide-react";
 import ModuleHeader, { PageWrap } from "@/components/ui/ModuleHeader";
 import { FormError } from "@/components/AuthShell";
 import { daysLeft, useAccess } from "@/components/billing/AccessProvider";
@@ -23,21 +23,23 @@ const TRIAL_STEPS = [
   "Ro'yxatdan o'tasiz — bepul sinov shu zahoti avtomatik boshlanadi.",
   `${TRIAL_DAYS} kun davomida barcha Premium vositalar ochiq. Karta yoki to'lov ma'lumoti so'ralmaydi.`,
   "Sinov tugagach, Premium vositalar yopiladi — hech narsa avtomatik yechib olinmaydi.",
-  "Davom ettirish uchun oylik yoki yillik tarifni Payme orqali to'laysiz.",
+  "Davom ettirish uchun oylik yoki yillik tarifni karta (Visa, Mastercard, Humo, Uzcard) yoki Payme orqali to'laysiz.",
 ];
+
+type Provider = "octo" | "payme";
 
 export default function PremiumPage() {
   const access = useAccess();
-  const [busy, setBusy] = useState<PlanId | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const now = new Date();
   const paidActive = !!access.paidUntil && access.paidUntil > now;
   const trialActive = !!access.trialEndsAt && access.trialEndsAt > now;
 
-  async function pay(plan: PlanId) {
+  async function pay(plan: PlanId, provider: Provider) {
     setError("");
-    setBusy(plan);
+    setBusy(`${plan}:${provider}`);
     try {
       const {
         data: { session },
@@ -46,7 +48,7 @@ export default function PremiumPage() {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, provider }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok || !body?.url) throw new Error(body?.error || "To'lovni boshlab bo'lmadi.");
@@ -141,10 +143,20 @@ export default function PremiumPage() {
             </div>
             <p className="mt-3 text-4xl font-semibold">${p.usd}</p>
             <p className="mt-1 text-sm text-zinc-500">{p.note}</p>
-            <p className="mt-3 text-xs text-zinc-500">To&apos;lov Payme orqali so&apos;mda, Markaziy bank kursi bo&apos;yicha.</p>
-            <button type="button" onClick={() => pay(p.id)} disabled={!!busy} className="btn-primary mt-5 w-full py-3">
-              {busy === p.id ? <Loader2 size={18} className="animate-spin" /> : null}
-              Payme orqali to&apos;lash
+            <p className="mt-3 text-xs text-zinc-500">To&apos;lov so&apos;mda, Markaziy bank kursi bo&apos;yicha.</p>
+            <button type="button" onClick={() => pay(p.id, "octo")} disabled={!!busy} className="btn-primary mt-5 w-full py-3">
+              {busy === `${p.id}:octo` ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+              Karta bilan to&apos;lash
+            </button>
+            <p className="mt-1.5 text-center text-xs text-zinc-500">Visa · Mastercard · Humo · Uzcard</p>
+            <button
+              type="button"
+              onClick={() => pay(p.id, "payme")}
+              disabled={!!busy}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-sm font-medium transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45"
+            >
+              {busy === `${p.id}:payme` ? <Loader2 size={18} className="animate-spin" /> : <Wallet size={18} />}
+              Payme orqali
             </button>
           </div>
         ))}
