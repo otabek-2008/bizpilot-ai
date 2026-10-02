@@ -19,13 +19,13 @@ export default function Paywall({ module: m }: { module: AppModule }) {
             <Lock size={13} />
           </span>
         </span>
-        <h1 className="relative mt-5 text-2xl font-semibold">{m.title} — obuna bilan</h1>
+        <h1 className="relative mt-5 text-2xl font-semibold">{m.title} — Premium vosita</h1>
         <p className="relative mt-2 text-zinc-400">
-          {TRIAL_DAYS} kunlik bepul sinov muddatingiz tugadi. Davom ettirish uchun obunani faollashtiring — oyiga ${PLANS.month.usd} yoki
+          {TRIAL_DAYS} kunlik bepul sinov muddatingiz tugadi. Davom ettirish uchun Premium obunani faollashtiring — oyiga ${PLANS.month.usd} yoki
           yiliga ${PLANS.year.usd}.
         </p>
-        <Link href="/dashboard/obuna" className="btn-primary relative mt-6 inline-flex px-6 py-3">
-          <Crown size={18} /> Obunani tanlash
+        <Link href="/dashboard/premium" className="btn-primary relative mt-6 inline-flex px-6 py-3">
+          <Crown size={18} /> Premium&apos;ga o&apos;tish
         </Link>
       </div>
     </PageWrap>

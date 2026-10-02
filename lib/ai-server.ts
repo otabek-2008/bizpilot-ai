@@ -37,7 +37,7 @@ export async function authorize(request: Request): Promise<Response | null> {
     return Response.json({ error: "Obunani tekshirib bo'lmadi. Birozdan so'ng urinib ko'ring." }, { status: 503 });
   }
   if (verdict === "no_access") {
-    return Response.json({ error: "Bepul sinov muddati tugagan. AI vositalari uchun obuna kerak.", code: "subscription_required" }, { status: 402 });
+    return Response.json({ error: "Bepul sinov muddati tugagan. AI vositalari uchun Premium obuna kerak.", code: "subscription_required" }, { status: 402 });
   }
   if (verdict === "limit") {
     return Response.json({ error: `Bugungi AI limiti (${AI_DAILY_LIMIT} ta so'rov) tugadi. Ertaga yana foydalanishingiz mumkin.` }, { status: 429 });

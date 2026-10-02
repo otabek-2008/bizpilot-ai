@@ -10,7 +10,7 @@ export type Faq = {
 export const faqs: Faq[] = [
   {
     q: "CampusAI bepulmi?",
-    a: "Ro'yxatdan o'tgandan keyin barcha vositalar 30 kun bepul. Keyin AI, prava, hujjat va matn vositalari uchun obuna kerak: oyiga $6.99 yoki yiliga $60 (Payme orqali). Abituriyent testlari, reyting va yordam doim bepul.",
+    a: "Ro'yxatdan o'tgandan keyin barcha vositalar 30 kun bepul. Keyin AI, prava, hujjat va matn vositalari uchun Premium obuna kerak: oyiga $6.99 yoki yiliga $60 (Payme orqali). Abituriyent testlari, reyting va yordam doim bepul.",
     keywords: ["bepul", "pul", "narx", "tolov", "to'lov", "obuna", "free", "бесплат", "цена"],
   },
   {

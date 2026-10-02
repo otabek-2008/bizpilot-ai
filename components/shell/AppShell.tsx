@@ -148,12 +148,12 @@ function TrialChip() {
   const left = daysLeft(trialEndsAt);
   return (
     <Link
-      href="/dashboard/obuna"
+      href="/dashboard/premium"
       className={`ml-auto hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition sm:flex ${
         active ? "border-amber-400/25 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15" : "border-rose-400/25 bg-rose-400/10 text-rose-200 hover:bg-rose-400/15"
       }`}
     >
-      {active ? `Bepul sinov: ${left} kun qoldi` : "Sinov tugadi — obuna"}
+      {active ? `Bepul sinov: ${left} kun qoldi` : "Sinov tugadi — Premium"}
     </Link>
   );
 }

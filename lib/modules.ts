@@ -55,7 +55,7 @@ export type ModuleId =
   | "solver"
   | "chat"
   | "profile"
-  | "obuna"
+  | "premium"
   | "contact";
 
 export type AppModule = {
@@ -291,12 +291,12 @@ export const modules: Record<ModuleId, AppModule> = {
     to: "#06b6d4",
     enter: "slide-left",
   },
-  obuna: {
-    id: "obuna",
-    title: "Obuna",
-    short: "Obuna",
-    desc: "Bepul sinov, tariflar va to'lov",
-    href: "/dashboard/obuna",
+  premium: {
+    id: "premium",
+    title: "Premium",
+    short: "Premium",
+    desc: "1 oy bepul sinov, tariflar va to'lov",
+    href: "/dashboard/premium",
     icon: Crown,
     from: "#f59e0b",
     to: "#f97316",
@@ -317,13 +317,14 @@ export const modules: Record<ModuleId, AppModule> = {
 
 export const navGroups: { label?: string; items: ModuleId[] }[] = [
   { items: ["dashboard", "reyting"] },
+  { label: "Premium", items: ["premium"] },
   { label: "Matn vositalari", items: ["case", "translit", "spellcheck"] },
   { label: "Rasm vositalari", items: ["photo"] },
   { label: "Hujjat vositalari", items: ["documents", "cv"] },
   { label: "Imtihonlar", items: ["abituriyent", "prava"] },
   { label: "AI vositalar", items: ["assistant", "solver", "quiz", "translator", "essay", "presentation", "business"] },
   { label: "Yordam", items: ["chat", "contact"] },
-  { label: "Hisob", items: ["obuna", "profile"] },
+  { label: "Hisob", items: ["profile"] },
 ];
 
 // Bosh sahifadagi vosita kartalari tartibi.

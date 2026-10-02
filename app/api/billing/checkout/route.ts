@@ -42,5 +42,5 @@ export async function POST(request: Request) {
     return Response.json({ error: "Buyurtma yaratib bo'lmadi." }, { status: 500 });
   }
 
-  return Response.json({ url: checkoutUrl(data.id, amount, `${site.url}/dashboard/obuna?tolov=${data.id}`) });
+  return Response.json({ url: checkoutUrl(data.id, amount, `${site.url}/dashboard/premium?tolov=${data.id}`) });
 }

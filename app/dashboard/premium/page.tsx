@@ -2,16 +2,31 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Clock, Crown, Loader2, XCircle } from "lucide-react";
+import Link from "next/link";
+import { Check, CheckCircle2, Clock, Crown, Gift, Loader2, XCircle } from "lucide-react";
 import ModuleHeader, { PageWrap } from "@/components/ui/ModuleHeader";
 import { FormError } from "@/components/AuthShell";
 import { daysLeft, useAccess } from "@/components/billing/AccessProvider";
-import { modules } from "@/lib/modules";
+import { modules, type ModuleId } from "@/lib/modules";
 import { PLANS, TRIAL_DAYS, type PlanId } from "@/lib/billing";
 import { formatDate } from "@/lib/date";
 import { supabase } from "@/lib/supabase";
 
-export default function ObunaPage() {
+// Premium'ga kiradigan vositalar (lib/billing.ts dagi PAID_MODULES bilan bir xil).
+const INCLUDED: { label: string; ids: ModuleId[] }[] = [
+  { label: "AI vositalar", ids: ["assistant", "solver", "quiz", "translator", "essay", "presentation", "business", "spellcheck"] },
+  { label: "Imtihon", ids: ["prava"] },
+  { label: "Hujjat va matn vositalari", ids: ["documents", "cv", "photo", "translit", "case"] },
+];
+
+const TRIAL_STEPS = [
+  "Ro'yxatdan o'tasiz — bepul sinov shu zahoti avtomatik boshlanadi.",
+  `${TRIAL_DAYS} kun davomida barcha Premium vositalar ochiq. Karta yoki to'lov ma'lumoti so'ralmaydi.`,
+  "Sinov tugagach, Premium vositalar yopiladi — hech narsa avtomatik yechib olinmaydi.",
+  "Davom ettirish uchun oylik yoki yillik tarifni Payme orqali to'laysiz.",
+];
+
+export default function PremiumPage() {
   const access = useAccess();
   const [busy, setBusy] = useState<PlanId | null>(null);
   const [error, setError] = useState("");
@@ -44,7 +59,7 @@ export default function ObunaPage() {
 
   return (
     <PageWrap>
-      <ModuleHeader module={modules.obuna} />
+      <ModuleHeader module={modules.premium} />
 
       <Suspense>
         <PaymentReturn onPaid={access.refresh} />
@@ -57,7 +72,7 @@ export default function ObunaPage() {
           <Loader2 className="relative mt-2 animate-spin text-zinc-500" size={20} />
         ) : paidActive ? (
           <p className="relative mt-1 text-xl font-semibold">
-            Obuna faol — {formatDate(access.paidUntil!.getTime())} gacha
+            Premium faol — {formatDate(access.paidUntil!.getTime())} gacha
             <span className="ml-2 text-sm font-normal text-zinc-400">({daysLeft(access.paidUntil)} kun)</span>
           </p>
         ) : trialActive ? (
@@ -68,11 +83,53 @@ export default function ObunaPage() {
         ) : (
           <p className="relative mt-1 text-xl font-semibold text-rose-200">Bepul sinov tugagan</p>
         )}
-        <p className="relative mt-2 text-sm text-zinc-500">
-          Yangi foydalanuvchilarga barcha vositalar {TRIAL_DAYS} kun bepul. Abituriyent testlari, reyting va yordam doim bepul. Sinov davrida
-          to&apos;lasangiz, qolgan bepul kunlar kuyib ketmaydi — obuna ulardan keyin boshlanadi.
-        </p>
       </section>
+
+      <div className="mb-6 grid gap-6 lg:grid-cols-2">
+        <section className="glass rounded-3xl p-6">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Gift size={18} className="text-amber-300" /> 1 oylik bepul sinov
+          </h2>
+          <ol className="mt-4 space-y-3">
+            {TRIAL_STEPS.map((step, i) => (
+              <li key={i} className="flex gap-3 text-sm text-zinc-300">
+                <span className="accent-gradient grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold">{i + 1}</span>
+                {step}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-4 text-xs text-zinc-500">
+            Sinov davrida to&apos;lasangiz, qolgan bepul kunlar kuyib ketmaydi — obuna ulardan keyin boshlanadi.
+          </p>
+        </section>
+
+        <section className="glass rounded-3xl p-6">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Crown size={18} className="text-amber-300" /> Premium&apos;ga nimalar kiradi
+          </h2>
+          <div className="mt-4 space-y-4">
+            {INCLUDED.map((g) => (
+              <div key={g.label}>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">{g.label}</p>
+                <div className="flex flex-wrap gap-2">
+                  {g.ids.map((id) => (
+                    <Link
+                      key={id}
+                      href={modules[id].href}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-zinc-300 transition hover:border-white/25 hover:text-white"
+                    >
+                      <Check size={13} className="text-emerald-300" /> {modules[id].short}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-zinc-500">
+            AI vositalari — kuniga 50 ta so&apos;rovgacha. Abituriyent testlari, reyting va yordam doim bepul.
+          </p>
+        </section>
+      </div>
 
       <FormError message={error} />
 
