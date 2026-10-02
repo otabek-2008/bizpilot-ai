@@ -367,7 +367,8 @@ drop function if exists public.rating_universities(text);
 drop function if exists public.rating_points(text);
 
 -- Reyting ballari: har bir to'g'ri javob = 1 ball (prava va abituriyent testlari).
--- Soxta natijalarga qarshi: bitta testdan ko'pi bilan 100 ball va har to'g'ri javobga kamida 1 soniya sarflangan bo'lishi kerak.
+-- Soxta natijalarga qarshi: bitta testdan ko'pi bilan 100 ball, har to'g'ri javobga kamida 1 soniya va kuniga ko'pi bilan 300 ball.
+-- Testlar vaqt bo'yicha ustma-ust tushmaydi (pastdagi check_test_result triggeri).
 create or replace function public.rating_points(period text)
 returns table (user_id uuid, points bigint, tests bigint)
 language sql stable security definer set search_path = public
@@ -380,15 +381,20 @@ as $$
     end as t
   ),
   r as (
-    select p.user_id, least(p.correct, 100) as pts
+    select p.user_id, p.created_at, least(p.correct, 100) as pts
       from prava_results p, since
      where p.created_at >= since.t and coalesce(p.duration_sec, 0) >= p.correct
     union all
-    select e.user_id, least(e.correct, 100)
+    select e.user_id, e.created_at, least(e.correct, 100)
       from exam_results e, since
      where e.created_at >= since.t and e.mode in ('practice', 'mock') and coalesce(e.duration_sec, 0) >= e.correct
+  ),
+  -- Bir kunda (Toshkent vaqti) ko'pi bilan 300 ball
+  daily as (
+    select user_id, least(sum(pts), 300) as pts, count(*) as n
+      from r group by user_id, (created_at at time zone 'Asia/Tashkent')::date
   )
-  select user_id, sum(pts)::bigint, count(*)::bigint from r group by user_id having sum(pts) > 0
+  select user_id, sum(pts)::bigint, sum(n)::bigint from daily group by user_id having sum(pts) > 0
 $$;
 
 revoke all on function public.rating_points(text) from public, anon, authenticated;
@@ -500,5 +506,298 @@ $$;
 revoke all on function public.handle_new_user_username() from public, anon, authenticated;
 revoke all on function public.username_available(text) from public;
 grant execute on function public.username_available(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+
+-- ================= Himoya: test natijalari, profil, xabarlar =================
+
+-- Testlar vaqt bo'yicha ustma-ust tushmaydi: natijadagi davomiylik oldingi natijadan beri o'tgan vaqtdan oshmaydi.
+-- Shunda soxta natija yozish uchun ham haqiqiy vaqt sarflash kerak; kuniga ko'pi bilan 100 ta natija.
+create or replace function public.check_test_result()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  last_at timestamptz;
+  n int;
+begin
+  perform pg_advisory_xact_lock(hashtext('test_result:' || new.user_id::text));
+  select max(t), count(*) filter (where t > now() - interval '1 day') into last_at, n from (
+    select created_at as t from prava_results where user_id = new.user_id
+    union all
+    select created_at from exam_results where user_id = new.user_id
+  ) x;
+  if n >= 100 then
+    raise exception 'Bir kunda juda ko''p test natijasi.';
+  end if;
+  last_at := coalesce(last_at, (select created_at from auth.users where id = new.user_id), now());
+  new.duration_sec := greatest(0, least(coalesce(new.duration_sec, 0), floor(extract(epoch from now() - last_at))::int));
+  new.created_at := now();
+  return new;
+end
+$$;
+
+drop trigger if exists check_prava_result on public.prava_results;
+create trigger check_prava_result before insert on public.prava_results
+  for each row execute function public.check_test_result();
+drop trigger if exists check_exam_result on public.exam_results;
+create trigger check_exam_result before insert on public.exam_results
+  for each row execute function public.check_test_result();
+
+-- Reytingda boshqalarga ko'rinadigan avatar faqat ishonchli manzillardan bo'ladi (aks holda ko'ruvchilarning IP'si begona saytga ketadi).
+create or replace function public.clean_profile()
+returns trigger
+language plpgsql set search_path = public
+as $$
+begin
+  if new.avatar_url is not null and new.avatar_url !~ '^https://([a-z0-9]+\.supabase\.co/storage/v1/object/public/avatars/|lh[0-9]\.googleusercontent\.com/|t\.me/i/userpic/)' then
+    new.avatar_url := null;
+  end if;
+  return new;
+end
+$$;
+
+drop trigger if exists clean_profile on public.profiles;
+create trigger clean_profile before insert or update on public.profiles
+  for each row execute function public.clean_profile();
+
+update public.profiles
+   set avatar_url = null
+ where avatar_url !~ '^https://([a-z0-9]+\.supabase\.co/storage/v1/object/public/avatars/|lh[0-9]\.googleusercontent\.com/|t\.me/i/userpic/)';
+
+-- Ilgari ismsiz hisoblar reytingda email boshi bilan chiqardi — olib tashlaymiz.
+update public.profiles p
+   set full_name = null
+  from auth.users u
+ where p.id = u.id and p.full_name = split_part(u.email, '@', 1);
+
+-- Uzunlik cheklovlari (eski yozuvlar tekshirilmaydi — NOT VALID).
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'support_messages_lengths') then
+    alter table public.support_messages add constraint support_messages_lengths check (
+      char_length(name) <= 200 and char_length(contact) <= 200 and char_length(subject) <= 300
+    ) not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'activity_log_module_length') then
+    alter table public.activity_log add constraint activity_log_module_length check (char_length(module) <= 40) not valid;
+  end if;
+end
+$$;
+
+-- Bazani axlat bilan to'ldirishga qarshi: kuniga ko'pi bilan 50 ta murojaat va 500 ta faoliyat yozuvi.
+create or replace function public.limit_daily_rows()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  n int;
+  max_rows int := tg_argv[0]::int;
+begin
+  execute format('select count(*) from %I.%I where user_id = $1 and created_at > now() - interval ''1 day''', tg_table_schema, tg_table_name)
+    into n using new.user_id;
+  if n >= max_rows then
+    raise exception 'Kunlik chegara tugadi.';
+  end if;
+  return new;
+end
+$$;
+
+drop trigger if exists limit_support_messages on public.support_messages;
+create trigger limit_support_messages before insert on public.support_messages
+  for each row execute function public.limit_daily_rows(50);
+drop trigger if exists limit_activity_log on public.activity_log;
+create trigger limit_activity_log before insert on public.activity_log
+  for each row execute function public.limit_daily_rows(500);
+
+revoke all on function public.check_test_result() from public, anon, authenticated;
+revoke all on function public.limit_daily_rows() from public, anon, authenticated;
+
+
+-- ================= Obuna: 30 kunlik bepul sinov + Payme =================
+-- Pullik bo'limlarga kirish: ro'yxatdan o'tgandan keyin 30 kun bepul, keyin paid_until gacha.
+create table if not exists public.subscriptions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  plan text check (plan in ('month', 'year')),
+  paid_until timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.subscriptions enable row level security;
+
+drop policy if exists "Users read own subscription" on public.subscriptions;
+create policy "Users read own subscription"
+  on public.subscriptions for select using (auth.uid() = user_id);
+
+grant select on public.subscriptions to authenticated;
+
+create or replace function public.trial_end(p_user uuid)
+returns timestamptz
+language sql stable security definer set search_path = public
+as $$
+  select created_at + interval '30 days' from auth.users where id = p_user
+$$;
+
+create or replace function public.user_has_access(p_user uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select coalesce(trial_end(p_user) > now(), false)
+      or exists (select 1 from subscriptions where user_id = p_user and paid_until > now())
+$$;
+
+/** Joriy foydalanuvchi uchun (RLS va brauzer). */
+create or replace function public.has_access()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select auth.uid() is not null and user_has_access(auth.uid())
+$$;
+
+create or replace function public.my_access()
+returns table (trial_ends_at timestamptz, paid_until timestamptz, plan text, active boolean)
+language sql stable security definer set search_path = public
+as $$
+  select trial_end(auth.uid()), s.paid_until, s.plan, user_has_access(auth.uid())
+    from (select auth.uid() as id) me
+    left join subscriptions s on s.user_id = me.id
+   where me.id is not null
+$$;
+
+-- Prava savollari — faqat sinov yoki obuna davrida.
+drop policy if exists "Users read active prava questions" on public.prava_questions;
+create policy "Users read active prava questions"
+  on public.prava_questions for select to authenticated
+  using (active and public.has_access());
+
+-- AI so'rovlari: kunlik limit (Toshkent vaqti bo'yicha). Faqat server (service role) chaqiradi.
+create table if not exists public.ai_usage (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  day date not null,
+  count int not null default 0,
+  primary key (user_id, day)
+);
+
+alter table public.ai_usage enable row level security;
+
+/** 'ok' | 'no_access' | 'limit' */
+create or replace function public.ai_take(p_user uuid, p_limit int)
+returns text
+language plpgsql security definer set search_path = public
+as $$
+declare
+  today date := (now() at time zone 'Asia/Tashkent')::date;
+  used int;
+begin
+  if not user_has_access(p_user) then
+    return 'no_access';
+  end if;
+  insert into ai_usage (user_id, day, count) values (p_user, today, 1)
+  on conflict (user_id, day) do update set count = ai_usage.count + 1
+  returning count into used;
+  if used > p_limit then
+    update ai_usage set count = count - 1 where user_id = p_user and day = today;
+    return 'limit';
+  end if;
+  return 'ok';
+end
+$$;
+
+-- To'lovlar: har bir buyurtma (id = Payme'dagi order_id) ko'pi bilan bitta Payme tranzaksiyasiga ega.
+-- state: 0 — buyurtma yaratildi, 1 — Payme tranzaksiyasi ochildi, 2 — to'landi, -1 — bekor (to'lovsiz), -2 — to'lovdan keyin bekor.
+create table if not exists public.payments (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan text not null check (plan in ('month', 'year')),
+  amount bigint not null check (amount > 0),
+  usd numeric(8, 2) not null,
+  rate numeric(12, 2) not null,
+  state smallint not null default 0,
+  payme_id text unique,
+  payme_time bigint,
+  create_time bigint,
+  perform_time bigint,
+  cancel_time bigint,
+  reason int,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists payments_user_idx on public.payments (user_id, created_at desc);
+create index if not exists payments_create_time_idx on public.payments (create_time);
+
+alter table public.payments enable row level security;
+
+drop policy if exists "Users read own payments" on public.payments;
+create policy "Users read own payments"
+  on public.payments for select using (auth.uid() = user_id);
+
+grant select on public.payments to authenticated;
+
+/** To'lov tasdiqlanadi va obuna uzaytiriladi — bitta tranzaksiyada. Sinov kunlari kuyib ketmaydi. */
+create or replace function public.payme_perform(p_payme_id text, p_time bigint)
+returns setof public.payments
+language plpgsql security definer set search_path = public
+as $$
+declare
+  p payments;
+begin
+  update payments set state = 2, perform_time = p_time
+   where payme_id = p_payme_id and state = 1
+  returning * into p;
+  if p.id is null then
+    return query select * from payments where payme_id = p_payme_id;
+    return;
+  end if;
+  insert into subscriptions (user_id, plan, paid_until, updated_at)
+  values (
+    p.user_id, p.plan,
+    greatest(now(), coalesce(trial_end(p.user_id), now())) + case p.plan when 'year' then interval '365 days' else interval '30 days' end,
+    now()
+  )
+  on conflict (user_id) do update set
+    plan = excluded.plan,
+    paid_until = greatest(now(), coalesce(subscriptions.paid_until, now()), coalesce(trial_end(p.user_id), now()))
+                 + case p.plan when 'year' then interval '365 days' else interval '30 days' end,
+    updated_at = now();
+  return next p;
+end
+$$;
+
+/** Bekor qilish; to'langan bo'lsa obuna muddati qaytarib olinadi. */
+create or replace function public.payme_cancel(p_payme_id text, p_time bigint, p_reason int)
+returns setof public.payments
+language plpgsql security definer set search_path = public
+as $$
+declare
+  p payments;
+begin
+  update payments
+     set state = case state when 2 then -2 else -1 end, cancel_time = p_time, reason = p_reason
+   where payme_id = p_payme_id and state in (1, 2)
+  returning * into p;
+  if p.id is not null and p.state = -2 then
+    update subscriptions
+       set paid_until = paid_until - case p.plan when 'year' then interval '365 days' else interval '30 days' end,
+           updated_at = now()
+     where user_id = p.user_id;
+  end if;
+  return query select * from payments where payme_id = p_payme_id;
+end
+$$;
+
+revoke all on function public.trial_end(uuid) from public, anon, authenticated;
+revoke all on function public.user_has_access(uuid) from public, anon, authenticated;
+revoke all on function public.ai_take(uuid, int) from public, anon, authenticated;
+revoke all on function public.payme_perform(text, bigint) from public, anon, authenticated;
+revoke all on function public.payme_cancel(text, bigint, int) from public, anon, authenticated;
+revoke all on function public.has_access() from public, anon;
+revoke all on function public.my_access() from public, anon;
+grant execute on function public.has_access() to authenticated;
+grant execute on function public.my_access() to authenticated;
+grant execute on function public.ai_take(uuid, int) to service_role;
+grant execute on function public.payme_perform(text, bigint) to service_role;
+grant execute on function public.payme_cancel(text, bigint, int) to service_role;
+grant all on public.payments, public.subscriptions, public.ai_usage to service_role;
 
 notify pgrst, 'reload schema';

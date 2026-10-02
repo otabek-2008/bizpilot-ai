@@ -53,6 +53,12 @@ export function normalizeStudentProfile(p: StudentProfile): { profile: StudentPr
   return { profile: { status: "talaba", university_id: uni?.id ?? null, university_name: name, faculty } };
 }
 
+/** Reytingda hammaga ko'rinadigan ism — email manzilining bo'lagi hech qachon chiqmasin. */
+function publicName(user: User): string | null {
+  const m = (user.user_metadata ?? {}) as { full_name?: string; name?: string; telegram_username?: string };
+  return (m.full_name?.trim() || m.name?.trim() || (m.telegram_username ? `@${m.telegram_username}` : "")).slice(0, 120) || null;
+}
+
 /** profiles jadvaliga yozadi va profil sahifasidagi eski maydonlarni (user_metadata) ham moslaydi. */
 export async function saveStudentProfile(user: User, raw: StudentProfile): Promise<StudentProfile> {
   const checked = normalizeStudentProfile(raw);
@@ -63,7 +69,7 @@ export async function saveStudentProfile(user: User, raw: StudentProfile): Promi
   const { error } = await supabase.from("profiles").upsert({
     id: user.id,
     ...p,
-    full_name: view.name.slice(0, 120),
+    full_name: publicName(user),
     avatar_url: view.avatar || null,
     updated_at: new Date().toISOString(),
   });
@@ -76,7 +82,7 @@ export async function saveStudentProfile(user: User, raw: StudentProfile): Promi
 /** Ism yoki avatar o'zgarganda reytingdagi ko'rinishni yangilaydi. */
 export function syncIdentity(user: User, stored: { name: string | null; avatar: string | null }) {
   const view = toProfile(user);
-  const name = view.name.slice(0, 120);
+  const name = publicName(user);
   const avatar = view.avatar || null;
   if (stored.name === name && stored.avatar === avatar) return;
   void supabase

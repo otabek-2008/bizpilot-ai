@@ -10,13 +10,19 @@ import Sidebar from "@/components/shell/Sidebar";
 import Avatar from "@/components/shell/Avatar";
 import BootScreen from "@/components/shell/BootScreen";
 import ProfileGate from "@/components/profile/ProfileGate";
+import AccessProvider, { daysLeft, useAccess } from "@/components/billing/AccessProvider";
+import Paywall from "@/components/billing/Paywall";
+import { Spinner } from "@/components/LoadingScreen";
 import { moduleForPath } from "@/lib/modules";
+import { PAID_MODULES } from "@/lib/billing";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider fallback={<BootScreen />}>
       <ProfileGate fallback={<BootScreen />}>
-        <Frame>{children}</Frame>
+        <AccessProvider>
+          <Frame>{children}</Frame>
+        </AccessProvider>
       </ProfileGate>
     </AuthProvider>
   );
@@ -26,7 +32,9 @@ function Frame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const mod = moduleForPath(pathname);
   const { profile } = useAuth();
+  const access = useAccess();
   const [drawer, setDrawer] = useState(false);
+  const paid = PAID_MODULES.has(mod.id);
 
   // Sahifa almashganda mobil menyuni yopamiz.
   const [prevPath, setPrevPath] = useState(pathname);
@@ -105,9 +113,11 @@ function Frame({ children }: { children: React.ReactNode }) {
               <span className="truncate text-sm font-medium text-zinc-200">{mod.title}</span>
             </div>
 
+            <TrialChip />
+
             <Link
               href="/dashboard/profile"
-              className="ml-auto flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-1 pr-1 transition hover:border-white/20 sm:pr-4"
+              className="flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-1 pr-1 transition hover:border-white/20 sm:pr-4"
             >
               <Avatar profile={profile} className="size-8 text-xs" />
               <span className="hidden max-w-[160px] truncate text-sm text-zinc-300 sm:block">
@@ -117,8 +127,33 @@ function Frame({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="min-w-0">{children}</main>
+        <main className="min-w-0">
+          {paid && access.loading ? (
+            <div className="grid min-h-[60vh] place-items-center">
+              <Spinner />
+            </div>
+          ) : paid && !access.active ? <Paywall module={mod} /> : children}
+        </main>
       </div>
     </div>
+  );
+}
+
+/** Sinov davrida necha kun qolgani; obunasi borlarga ko'rsatilmaydi. */
+function TrialChip() {
+  const { loading, active, trialEndsAt, paidUntil } = useAccess();
+  if (loading) return <span className="ml-auto" />;
+  const paidActive = !!paidUntil && paidUntil > new Date();
+  if (paidActive) return <span className="ml-auto" />;
+  const left = daysLeft(trialEndsAt);
+  return (
+    <Link
+      href="/dashboard/obuna"
+      className={`ml-auto hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition sm:flex ${
+        active ? "border-amber-400/25 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15" : "border-rose-400/25 bg-rose-400/10 text-rose-200 hover:bg-rose-400/15"
+      }`}
+    >
+      {active ? `Bepul sinov: ${left} kun qoldi` : "Sinov tugadi — obuna"}
+    </Link>
   );
 }

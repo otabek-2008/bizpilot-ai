@@ -1,6 +1,7 @@
 import {
   BotMessageSquare,
   Briefcase,
+  Crown,
   CarFront,
   CaseSensitive,
   FileStack,
@@ -54,6 +55,7 @@ export type ModuleId =
   | "solver"
   | "chat"
   | "profile"
+  | "obuna"
   | "contact";
 
 export type AppModule = {
@@ -289,6 +291,17 @@ export const modules: Record<ModuleId, AppModule> = {
     to: "#06b6d4",
     enter: "slide-left",
   },
+  obuna: {
+    id: "obuna",
+    title: "Obuna",
+    short: "Obuna",
+    desc: "Bepul sinov, tariflar va to'lov",
+    href: "/dashboard/obuna",
+    icon: Crown,
+    from: "#f59e0b",
+    to: "#f97316",
+    enter: "pop",
+  },
   contact: {
     id: "contact",
     title: "Aloqa",
@@ -310,7 +323,7 @@ export const navGroups: { label?: string; items: ModuleId[] }[] = [
   { label: "Imtihonlar", items: ["abituriyent", "prava"] },
   { label: "AI vositalar", items: ["assistant", "solver", "quiz", "translator", "essay", "presentation", "business"] },
   { label: "Yordam", items: ["chat", "contact"] },
-  { label: "Hisob", items: ["profile"] },
+  { label: "Hisob", items: ["obuna", "profile"] },
 ];
 
 // Bosh sahifadagi vosita kartalari tartibi.

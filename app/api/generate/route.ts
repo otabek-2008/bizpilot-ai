@@ -1,13 +1,10 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
+import { FALLBACK, MODEL, aiErrorMessage, authorize, client } from "@/lib/ai-server";
 import type { GeneratedDocuments } from "@/types";
 
 // Claude javobi bir necha o'n soniya davom etishi mumkin.
 export const maxDuration = 300;
-
-const MODEL = "claude-opus-5";
 
 const InputSchema = z.object({
   idea: z.string().trim().min(1).max(4000),
@@ -94,33 +91,9 @@ Talablar:
 - Ro'yxatlarda odatda 3-6 ta aniq band bo'lsin.
 - priority qiymati faqat "high", "medium" yoki "low".`;
 
-function supabaseForToken(token: string) {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } },
-  );
-}
-
 export async function POST(request: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json(
-      { error: "AI sozlanmagan (ANTHROPIC_API_KEY yo'q)." },
-      { status: 503 },
-    );
-  }
-
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token) {
-    return Response.json({ error: "Avtorizatsiya talab qilinadi." }, { status: 401 });
-  }
-
-  const {
-    data: { user },
-  } = await supabaseForToken(token).auth.getUser(token);
-  if (!user) {
-    return Response.json({ error: "Sessiya yaroqsiz." }, { status: 401 });
-  }
+  const denied = await authorize(request);
+  if (denied) return denied;
 
   const parsed = InputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -128,15 +101,13 @@ export async function POST(request: Request) {
   }
   const input = parsed.data;
 
-  const client = new Anthropic();
-
   try {
-    const response = await client.messages.parse({
+    const response = await client().beta.messages.parse({
       model: MODEL,
       max_tokens: 16000,
       output_config: {
         effort: "medium",
-        format: zodOutputFormat(DocumentsSchema),
+        format: betaZodOutputFormat(DocumentsSchema),
       },
       system: SYSTEM_PROMPT,
       messages: [
@@ -148,6 +119,7 @@ Byudjet: ${input.budget || "ko'rsatilmagan"}
 Hudud: ${input.location || "ko'rsatilmagan"}`,
         },
       ],
+      ...FALLBACK,
     });
 
     if (response.stop_reason === "refusal") {
@@ -172,20 +144,7 @@ Hudud: ${input.location || "ko'rsatilmagan"}`,
 
     return Response.json(docs);
   } catch (error) {
-    if (error instanceof Anthropic.RateLimitError) {
-      return Response.json(
-        { error: "AI hozir band. Bir ozdan so'ng qayta urinib ko'ring." },
-        { status: 429 },
-      );
-    }
-    if (error instanceof Anthropic.AuthenticationError) {
-      console.error("Anthropic API key is invalid");
-      return Response.json({ error: "AI sozlamalarida xatolik." }, { status: 503 });
-    }
-    if (error instanceof Anthropic.APIError) {
-      console.error(`Anthropic API error ${error.status}:`, error.message);
-      return Response.json({ error: "AI xizmatida xatolik yuz berdi." }, { status: 502 });
-    }
-    throw error;
+    const { message, status } = aiErrorMessage(error);
+    return Response.json({ error: message }, { status });
   }
 }

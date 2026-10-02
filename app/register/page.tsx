@@ -14,7 +14,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Hisob yaratish"
-      subtitle="Bir daqiqada ro'yxatdan o'ting — bepul."
+      subtitle="Bir daqiqada ro'yxatdan o'ting — 30 kun bepul."
       image={meeting}
       imageAlt="Talabalar jamoasi"
       headline="O'qish uchun aqlli vositalar."

@@ -33,7 +33,10 @@ const jsonLd = {
       operatingSystem: "Web",
       inLanguage: "uz",
       description: "O'zbekistondagi talabalar uchun AI yordamchi, referat, imlo tekshiruvchi, CV, Lotin ↔ Kirill va hujjat konvertori.",
-      offers: { "@type": "Offer", price: "0", priceCurrency: "UZS" },
+      offers: [
+        { "@type": "Offer", name: "Oylik obuna", price: "6.99", priceCurrency: "USD" },
+        { "@type": "Offer", name: "Yillik obuna", price: "60", priceCurrency: "USD" },
+      ],
     },
   ],
 };
@@ -117,7 +120,7 @@ export default function HomePage() {
           </div>
 
           <ul className="animate-fade-up mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-zinc-500 [animation-delay:320ms]">
-            {["Bepul", "Fayllar brauzerda qoladi", "Telefon va kompyuterda"].map((t) => (
+            {["30 kun bepul", "Fayllar brauzerda qoladi", "Telefon va kompyuterda"].map((t) => (
               <li key={t} className="flex items-center gap-1.5">
                 <Check size={15} className="text-brand-400" /> {t}
               </li>
@@ -247,7 +250,7 @@ export default function HomePage() {
           <Image src={meeting} alt="" fill placeholder="blur" sizes="(min-width: 1152px) 1152px, 100vw" className="-z-20 object-cover" />
           <div className="absolute inset-0 -z-10 bg-gradient-to-br from-brand-700/90 via-ink/85 to-indigo-900/90" />
           <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight sm:text-5xl">Bugunoq boshlang</h2>
-          <p className="mx-auto mt-5 max-w-xl text-zinc-300">Hisob yarating va barcha vositalardan bepul foydalaning.</p>
+          <p className="mx-auto mt-5 max-w-xl text-zinc-300">Hisob yarating va barcha vositalardan 30 kun bepul foydalaning.</p>
           <Link href="/register" className="btn-primary mt-10 px-8 py-4 text-base">
             Hisob yaratish <ArrowRight size={18} />
           </Link>
