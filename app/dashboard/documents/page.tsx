@@ -95,7 +95,7 @@ export default function DocumentsPage() {
       let res: Result;
       switch (toolId) {
         case "pdf2word":
-          res = { blob: await lib.pdfToWord(first, onProgress), name: `${baseName(first.name)}.docx`, note: "Matn va sarlavhalar saqlanadi; murakkab joylashuv soddalashtiriladi." };
+          res = { blob: await lib.pdfToWord(first, onProgress), name: `${baseName(first.name)}.docx`, note: "Matn, sarlavhalar va chegarali jadvallar saqlanadi; murakkab joylashuv soddalashtiriladi." };
           break;
         case "word2pdf":
           res = { blob: await lib.wordToPdf(first, onProgress), name: `${baseName(first.name)}.pdf` };

@@ -26,81 +26,355 @@ async function openPdf(file: File) {
 
 // ---------------- PDF → Word ----------------
 
+type Piece = { str: string; x: number; y: number; w: number; size: number; eol: boolean };
 type Line = { text: string; size: number; y: number };
+// Chiziq: gorizontal uchun pos=y, from/to=x; vertikal uchun pos=x, from/to=y
+type Seg = { pos: number; from: number; to: number };
+type Cell = { row: number; col: number; rowSpan: number; colSpan: number; pieces: Piece[] };
+type GridTable = { xs: number[]; ys: number[]; cells: Cell[] };
+type Matrix = [number, number, number, number, number, number];
+
+const TOL = 2; // pt
+
+const mul = (m: Matrix, n: Matrix): Matrix => [
+  m[0] * n[0] + m[2] * n[1],
+  m[1] * n[0] + m[3] * n[1],
+  m[0] * n[2] + m[2] * n[3],
+  m[1] * n[2] + m[3] * n[3],
+  m[0] * n[4] + m[2] * n[5] + m[4],
+  m[1] * n[4] + m[3] * n[5] + m[5],
+];
+const apply = (m: Matrix, x: number, y: number): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+
+type PdfJs = Awaited<ReturnType<typeof loadPdfJs>>;
+type PdfPage = Awaited<ReturnType<Awaited<ReturnType<typeof openPdf>>["getPage"]>>;
+
+// Sahifadagi gorizontal va vertikal chiziqlar (jadval chegaralari) — chizilgan yoki ingichka to'rtburchak sifatida bo'yalgan.
+async function pageRulings(page: PdfPage, OPS: PdfJs["OPS"]) {
+  const { fnArray, argsArray } = await page.getOperatorList();
+  const h: Seg[] = [];
+  const v: Seg[] = [];
+  const add = (x1: number, y1: number, x2: number, y2: number) => {
+    if (Math.abs(y1 - y2) <= TOL / 2 && Math.abs(x1 - x2) > TOL) {
+      h.push({ pos: (y1 + y2) / 2, from: Math.min(x1, x2), to: Math.max(x1, x2) });
+    } else if (Math.abs(x1 - x2) <= TOL / 2 && Math.abs(y1 - y2) > TOL) {
+      v.push({ pos: (x1 + x2) / 2, from: Math.min(y1, y2), to: Math.max(y1, y2) });
+    }
+  };
+  const strokeOps = new Set<number>([OPS.stroke, OPS.closeStroke, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
+  const fillOps = new Set<number>([OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
+
+  let ctm: Matrix = [1, 0, 0, 1, 0, 0];
+  const stack: Matrix[] = [];
+
+  for (let i = 0; i < fnArray.length; i++) {
+    const fn = fnArray[i];
+    const args = argsArray[i];
+    if (fn === OPS.save) stack.push(ctm);
+    else if (fn === OPS.restore) ctm = stack.pop() ?? ctm;
+    else if (fn === OPS.transform) ctm = mul(ctm, args as Matrix);
+    else if (fn === OPS.paintFormXObjectBegin) {
+      stack.push(ctm);
+      if (Array.isArray(args[0]) && args[0].length === 6) ctm = mul(ctm, args[0] as Matrix);
+    } else if (fn === OPS.paintFormXObjectEnd) ctm = stack.pop() ?? ctm;
+    else if (fn === OPS.constructPath) {
+      const op = args[0] as number;
+      const data = (args[1] as ArrayLike<number>[] | undefined)?.[0];
+      if (!data || (!strokeOps.has(op) && !fillOps.has(op))) continue;
+
+      // Yo'lni qism-yo'llarga ajratamiz; egri chiziqli qism-yo'llar e'tiborga olinmaydi
+      const subpaths: { pts: [number, number][]; closed: boolean; curved: boolean }[] = [];
+      let cur: (typeof subpaths)[number] | null = null;
+      for (let k = 0; k < data.length; ) {
+        const code = data[k++];
+        if (code === 0) {
+          cur = { pts: [apply(ctm, data[k++], data[k++])], closed: false, curved: false };
+          subpaths.push(cur);
+        } else if (code === 1) {
+          const p = apply(ctm, data[k++], data[k++]);
+          if (cur) cur.pts.push(p);
+        } else if (code === 2) {
+          k += 6;
+          if (cur) cur.curved = true;
+        } else if (code === 3) {
+          k += 4;
+          if (cur) cur.curved = true;
+        } else if (code === 4) {
+          if (cur) cur.closed = true;
+        } else break;
+      }
+
+      for (const sp of subpaths) {
+        if (sp.curved || sp.pts.length < 2) continue;
+        if (strokeOps.has(op)) {
+          for (let k = 1; k < sp.pts.length; k++) add(...sp.pts[k - 1], ...sp.pts[k]);
+          if (sp.closed) add(...sp.pts[sp.pts.length - 1], ...sp.pts[0]);
+        }
+        if (fillOps.has(op)) {
+          // Ingichka bo'yalgan to'rtburchak — chiziq sifatida
+          const xs = sp.pts.map((p) => p[0]);
+          const ys = sp.pts.map((p) => p[1]);
+          const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+          if (y1 - y0 <= 3 && x1 - x0 > TOL) add(x0, (y0 + y1) / 2, x1, (y0 + y1) / 2);
+          else if (x1 - x0 <= 3 && y1 - y0 > TOL) add((x0 + x1) / 2, y0, (x0 + x1) / 2, y1);
+        }
+      }
+    }
+  }
+  return { h: mergeSegs(h), v: mergeSegs(v) };
+}
+
+function mergeSegs(segs: Seg[]): Seg[] {
+  const sorted = [...segs].sort((a, b) => a.pos - b.pos || a.from - b.from);
+  const out: Seg[] = [];
+  for (const s of sorted) {
+    const last = out.find((o) => Math.abs(o.pos - s.pos) <= TOL && s.from <= o.to + TOL && s.to >= o.from - TOL);
+    if (last) {
+      last.from = Math.min(last.from, s.from);
+      last.to = Math.max(last.to, s.to);
+    } else out.push({ ...s });
+  }
+  return out;
+}
+
+function cluster(vals: number[]): number[] {
+  const sorted = [...vals].sort((a, b) => a - b);
+  const groups: number[][] = [];
+  for (const v of sorted) {
+    const g = groups[groups.length - 1];
+    if (g && v - g[g.length - 1] <= TOL) g.push(v);
+    else groups.push([v]);
+  }
+  return groups.map((g) => g.reduce((a, b) => a + b, 0) / g.length);
+}
+
+const covers = (segs: Seg[], pos: number, at: number) =>
+  segs.some((s) => Math.abs(s.pos - pos) <= TOL && s.from - TOL <= at && s.to + TOL >= at);
+
+// Kesishgan chiziqlar guruhidan jadval to'rini quradi (birlashtirilgan kataklar bilan)
+function findTables(h: Seg[], v: Seg[]): GridTable[] {
+  const parent = [...Array(h.length + v.length).keys()];
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  h.forEach((hs, i) =>
+    v.forEach((vs, j) => {
+      if (vs.pos >= hs.from - TOL && vs.pos <= hs.to + TOL && hs.pos >= vs.from - TOL && hs.pos <= vs.to + TOL) {
+        parent[find(i)] = find(h.length + j);
+      }
+    }),
+  );
+  const groups = new Map<number, { h: Seg[]; v: Seg[] }>();
+  h.forEach((s, i) => {
+    const g = groups.get(find(i)) ?? { h: [], v: [] };
+    g.h.push(s);
+    groups.set(find(i), g);
+  });
+  v.forEach((s, j) => {
+    const g = groups.get(find(h.length + j)) ?? { h: [], v: [] };
+    g.v.push(s);
+    groups.set(find(h.length + j), g);
+  });
+
+  const tables: GridTable[] = [];
+  for (const g of groups.values()) {
+    if (!g.h.length || !g.v.length) continue;
+    // Tashqi chegarasi chizilmagan jadvallar uchun chetlarni ham qo'shamiz
+    const xs = cluster([...g.v.map((s) => s.pos), Math.min(...g.h.map((s) => s.from)), Math.max(...g.h.map((s) => s.to))]);
+    const ys = cluster([...g.h.map((s) => s.pos), Math.min(...g.v.map((s) => s.from)), Math.max(...g.v.map((s) => s.to))]).reverse();
+    const R = ys.length - 1;
+    const C = xs.length - 1;
+    if (R < 1 || C < 1 || R * C < 2) continue;
+
+    const taken = Array.from({ length: R }, () => Array<boolean>(C).fill(false));
+    const cells: Cell[] = [];
+    for (let r = 0; r < R; r++) {
+      for (let c = 0; c < C; c++) {
+        if (taken[r][c]) continue;
+        const midY = (ys[r] + ys[r + 1]) / 2;
+        let cs = 1;
+        while (c + cs < C && !taken[r][c + cs] && !covers(g.v, xs[c + cs], midY)) cs++;
+        let rs = 1;
+        const cols = Array.from({ length: cs }, (_, k) => c + k);
+        while (r + rs < R && cols.every((k) => !taken[r + rs][k] && !covers(g.h, ys[r + rs], (xs[k] + xs[k + 1]) / 2))) rs++;
+        for (let rr = r; rr < r + rs; rr++) for (const k of cols) taken[rr][k] = true;
+        cells.push({ row: r, col: c, rowSpan: rs, colSpan: cs, pieces: [] });
+      }
+    }
+    tables.push({ xs, ys, cells });
+  }
+  return tables;
+}
+
+// Matn bo'laklarini qatorlarga yig'adi; bo'laklar orasidagi bo'shliq probel bilan saqlanadi
+function toLines(pieces: Piece[]): Line[] {
+  const lines: Line[] = [];
+  let current: Line | null = null;
+  let lastEnd = 0;
+  for (const p of pieces) {
+    if (!current || Math.abs(current.y - p.y) > p.size * 0.5) {
+      if (current?.text.trim()) lines.push(current);
+      current = { text: "", size: p.size, y: p.y };
+    } else if (p.x - lastEnd > p.size * 0.2 && !/\s$/.test(current.text) && !/^\s/.test(p.str)) {
+      current.text += " ";
+    }
+    current.text += p.str;
+    current.size = Math.max(current.size, p.size);
+    lastEnd = p.x + p.w;
+    if (p.eol) {
+      if (current.text.trim()) lines.push(current);
+      current = null;
+    }
+  }
+  if (current?.text.trim()) lines.push(current);
+  return lines;
+}
+
+// Yaqin qatorlarni bitta xatboshiga birlashtiradi
+function toBlocks(lines: Line[], breaksAt: number[] = []): Line[] {
+  const blocks: Line[] = [];
+  let buf: Line | null = null;
+  lines.forEach((line, i) => {
+    const prev = lines[i - 1];
+    const sameBlock =
+      buf &&
+      prev &&
+      Math.abs(prev.size - line.size) <= 1 &&
+      prev.y - line.y > 0 &&
+      prev.y - line.y < line.size * 1.8 &&
+      !breaksAt.some((y) => y < prev.y && y > line.y);
+    if (sameBlock && buf) {
+      buf.text = buf.text.endsWith("-") ? buf.text.slice(0, -1) + line.text : `${buf.text} ${line.text}`;
+    } else {
+      if (buf) blocks.push(buf);
+      buf = { ...line };
+    }
+  });
+  if (buf) blocks.push(buf);
+  return blocks;
+}
 
 export async function pdfToWord(file: File, onProgress?: Progress): Promise<Blob> {
   const pdf = await openPdf(file);
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import("docx");
+  const { OPS } = await loadPdfJs();
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } = await import("docx");
 
-  const pages: Line[][] = [];
+  const pages: { lines: Line[]; tables: GridTable[] }[] = [];
   const sizes = new Map<number, number>();
+  let hasText = false;
 
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    const lines: Line[] = [];
-    let current: Line | null = null;
-
+    const pieces: Piece[] = [];
     for (const item of content.items) {
       if (!("str" in item)) continue;
-      const y = item.transform[5];
-      const size = Math.round(Math.hypot(item.transform[2], item.transform[3]) || item.height || 11);
-      if (!current || Math.abs(current.y - y) > size * 0.5) {
-        if (current?.text.trim()) lines.push(current);
-        current = { text: "", size, y };
-      }
-      current.text += item.str;
-      current.size = Math.max(current.size, size);
-      if (item.hasEOL) {
-        if (current.text.trim()) lines.push(current);
-        current = null;
+      pieces.push({
+        str: item.str,
+        x: item.transform[4],
+        y: item.transform[5],
+        w: item.width,
+        size: Math.round(Math.hypot(item.transform[2], item.transform[3]) || item.height || 11),
+        eol: item.hasEOL,
+      });
+    }
+
+    let tables: GridTable[] = [];
+    try {
+      const { h, v } = await pageRulings(page, OPS);
+      tables = findTables(h, v);
+    } catch {
+      // Chiziqlarni o'qib bo'lmasa, sahifa oddiy matn sifatida chiqadi
+    }
+
+    // Jadval ichidagi matn kataklarga, qolgani oddiy matnga
+    const placed = new Map<Piece, GridTable>();
+    for (const piece of pieces) {
+      if (!piece.str) continue;
+      const cx = piece.x + piece.w / 2;
+      const cy = piece.y + piece.size * 0.3;
+      for (const t of tables) {
+        const C = t.xs.length - 1;
+        const R = t.ys.length - 1;
+        if (cx < t.xs[0] - TOL || cx > t.xs[C] + TOL || cy > t.ys[0] + TOL || cy < t.ys[R] - TOL) continue;
+        let col = 0;
+        while (col < C - 1 && cx > t.xs[col + 1]) col++;
+        let row = 0;
+        while (row < R - 1 && cy < t.ys[row + 1]) row++;
+        const cell = t.cells.find((c) => row >= c.row && row < c.row + c.rowSpan && col >= c.col && col < c.col + c.colSpan);
+        if (cell) {
+          cell.pieces.push(piece);
+          placed.set(piece, t);
+          break;
+        }
       }
     }
-    if (current?.text.trim()) lines.push(current);
+    // Deyarli bo'sh to'rlar (diagramma, bezak ramkalari) jadval emas — matni oddiy matnga qaytadi
+    tables = tables.filter((t) => {
+      const filled = t.cells.filter((c) => c.pieces.some((p) => p.str.trim())).length;
+      return filled >= 2 && filled / t.cells.length >= 0.25;
+    });
+    const free = pieces.filter((piece) => !tables.includes(placed.get(piece)!));
 
+    const lines = toLines(free);
     for (const l of lines) sizes.set(l.size, (sizes.get(l.size) ?? 0) + l.text.length);
-    pages.push(lines);
+    if (lines.length || tables.some((t) => t.cells.some((c) => c.pieces.length))) hasText = true;
+    pages.push({ lines, tables });
     onProgress?.(p, pdf.numPages);
   }
 
-  if (pages.every((l) => l.length === 0)) {
+  if (!hasText) {
     throw new Error("PDF ichida matn topilmadi (skanerlangan rasm bo'lishi mumkin). Bunday fayllar uchun matnni tanib olish (OCR) kerak.");
   }
 
   // Asosiy matn o'lchami — eng ko'p uchraydigan shrift o'lchami
   const body = [...sizes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 11;
+  const MAX_TABLE_W = 9026; // A4 dan 1" chekkalar ayirilgan kenglik, twip
 
-  const sections = pages.map((lines) => {
-    const paragraphs: InstanceType<typeof Paragraph>[] = [];
-    let buf: Line | null = null;
+  const textParagraph = (b: Line, inCell = false) => {
+    const heading = !inCell && b.size >= body * 1.25;
+    return new Paragraph({
+      heading: heading ? (b.size >= body * 1.6 ? HeadingLevel.HEADING_1 : HeadingLevel.HEADING_2) : undefined,
+      spacing: { after: inCell ? 0 : 120 },
+      children: [new TextRun({ text: b.text.trim(), size: Math.round(b.size * 2), bold: heading })],
+    });
+  };
 
-    const flush = () => {
-      if (!buf) return;
-      const heading = buf.size >= body * 1.25;
-      paragraphs.push(
-        new Paragraph({
-          heading: heading ? (buf.size >= body * 1.6 ? HeadingLevel.HEADING_1 : HeadingLevel.HEADING_2) : undefined,
-          spacing: { after: 120 },
-          children: [new TextRun({ text: buf.text.trim(), size: Math.round(buf.size * 2), bold: heading })],
+  const sections = pages.map(({ lines, tables }) => {
+    const tops = tables.map((t) => t.ys[0]);
+    const items: { y: number; el: InstanceType<typeof Paragraph> | InstanceType<typeof Table> }[] = toBlocks(lines, tops).map((b) => ({
+      y: b.y,
+      el: textParagraph(b),
+    }));
+
+    for (const t of tables) {
+      const widths = t.xs.slice(1).map((x, i) => (x - t.xs[i]) * 20);
+      const scale = Math.min(1, MAX_TABLE_W / widths.reduce((a, b) => a + b, 0));
+      const colW = widths.map((w) => Math.round(w * scale));
+      const rows = t.ys.slice(1).map((_, r) =>
+        new TableRow({
+          children: t.cells
+            .filter((c) => c.row === r)
+            .sort((a, b) => a.col - b.col)
+            .map((c) => {
+              const blocks = toBlocks(toLines(c.pieces));
+              return new TableCell({
+                columnSpan: c.colSpan > 1 ? c.colSpan : undefined,
+                rowSpan: c.rowSpan > 1 ? c.rowSpan : undefined,
+                width: { size: colW.slice(c.col, c.col + c.colSpan).reduce((a, b) => a + b, 0), type: WidthType.DXA },
+                children: blocks.length ? blocks.map((b) => textParagraph(b, true)) : [new Paragraph("")],
+              });
+            }),
         }),
       );
-      buf = null;
-    };
+      items.push({
+        y: t.ys[0],
+        el: new Table({ width: { size: colW.reduce((a, b) => a + b, 0), type: WidthType.DXA }, columnWidths: colW, rows }),
+      });
+    }
 
-    lines.forEach((line, i) => {
-      const prev = lines[i - 1];
-      const sameBlock =
-        buf && prev && Math.abs(prev.size - line.size) <= 1 && prev.y - line.y > 0 && prev.y - line.y < line.size * 1.8;
-      if (sameBlock && buf) {
-        buf.text = buf.text.endsWith("-") ? buf.text.slice(0, -1) + line.text : `${buf.text} ${line.text}`;
-      } else {
-        flush();
-        buf = { ...line };
-      }
-    });
-    flush();
-
-    return { children: paragraphs.length ? paragraphs : [new Paragraph("")] };
+    items.sort((a, b) => b.y - a.y);
+    // Jadvaldan keyin bo'sh xatboshi — ketma-ket jadvallar bir-biriga yopishib qolmasligi uchun
+    const children = items.flatMap((it) => (it.el instanceof Table ? [it.el, new Paragraph("")] : [it.el]));
+    return { children: children.length ? children : [new Paragraph("")] };
   });
 
   return Packer.toBlob(new Document({ sections }));
