@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   ListChecks,
   MessagesSquare,
+  PenLine,
   Presentation,
   ScanFace,
   ScrollText,
@@ -40,6 +41,7 @@ export type ModuleId =
   | "reyting"
   | "case"
   | "translit"
+  | "handwriting"
   | "spellcheck"
   | "photo"
   | "documents"
@@ -116,6 +118,18 @@ export const modules: Record<ModuleId, AppModule> = {
     from: "#10b981",
     to: "#14b8a6",
     enter: "flip",
+  },
+  handwriting: {
+    id: "handwriting",
+    title: "Qo'lyozma",
+    short: "Qo'lyozma",
+    desc: "Matnni yozing — u daftar varag'ida qo'lda yozilgandek chiqadi, PDF yoki PNG qilib yuklab oling",
+    href: "/dashboard/handwriting",
+    icon: PenLine,
+    from: "#2563eb",
+    to: "#6366f1",
+    enter: "drop",
+    badge: "Yangi",
   },
   spellcheck: {
     id: "spellcheck",
@@ -318,7 +332,7 @@ export const modules: Record<ModuleId, AppModule> = {
 export const navGroups: { label?: string; items: ModuleId[] }[] = [
   { items: ["dashboard", "reyting"] },
   { label: "Premium", items: ["premium"] },
-  { label: "Matn vositalari", items: ["case", "translit", "spellcheck"] },
+  { label: "Matn vositalari", items: ["case", "translit", "handwriting", "spellcheck"] },
   { label: "Rasm vositalari", items: ["photo"] },
   { label: "Hujjat vositalari", items: ["documents", "cv"] },
   { label: "Imtihonlar", items: ["abituriyent", "prava"] },
@@ -339,6 +353,7 @@ export const toolIds: ModuleId[] = [
   "spellcheck",
   "case",
   "translit",
+  "handwriting",
   "photo",
   "documents",
   "cv",
