@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import AuthProvider, { useAuth } from "@/components/AuthProvider";
-import Backdrop from "@/components/Backdrop";
+import AppBackdrop from "@/components/shell/AppBackdrop";
 import Sidebar from "@/components/shell/Sidebar";
 import Avatar from "@/components/shell/Avatar";
 import BootScreen from "@/components/shell/BootScreen";
@@ -58,10 +58,10 @@ function Frame({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="module-scope relative min-h-screen text-white"
+      className="module-scope relative isolate min-h-screen text-white"
       style={{ "--accent": mod.from, "--accent-2": mod.to } as React.CSSProperties}
     >
-      <Backdrop />
+      <AppBackdrop />
       {/* Bo'lim rangidagi yumshoq nur — bo'lim almashganda silliq o'zgaradi */}
       <div
         aria-hidden
