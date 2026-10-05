@@ -6,11 +6,12 @@ import ModuleHeader, { PageWrap } from "@/components/ui/ModuleHeader";
 import { modules } from "@/lib/modules";
 import { logActivity } from "@/lib/activity";
 import { downloadBlob } from "@/lib/download";
-import { pagesToPdf, pagesToPng, renderHandwriting } from "@/lib/handwriting";
+import { INKS, pagesToPdf, pagesToPng, renderHandwriting, type InkColor } from "@/lib/handwriting";
 import { handFont } from "./font";
 
 export default function HandwritingPage() {
   const [input, setInput] = useState("");
+  const [ink, setInk] = useState<InkColor>("blue");
   const [pages, setPages] = useState<HTMLCanvasElement[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [busy, setBusy] = useState<"pdf" | "png" | null>(null);
@@ -24,7 +25,7 @@ export default function HandwritingPage() {
       // (Android, Linux) load() xato beradi. Shrift baribir yuklanmasa ham varaq chiziladi.
       await document.fonts.load(`40px ${family.split(",")[0]}`, input || "a").catch(() => {});
       if (cancelled) return;
-      const next = input.trim() ? renderHandwriting(input, family) : [];
+      const next = input.trim() ? renderHandwriting(input, family, ink) : [];
       setPages(next);
       setPreviews(next.map((c) => c.toDataURL("image/jpeg", 0.85)));
     }, 300);
@@ -32,7 +33,7 @@ export default function HandwritingPage() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [input]);
+  }, [input, ink]);
 
   async function download(kind: "pdf" | "png") {
     setBusy(kind);
@@ -42,7 +43,7 @@ export default function HandwritingPage() {
         const { blob, ext } = await pagesToPng(pages);
         downloadBlob(blob, `campusai-qolyozma.${ext}`);
       }
-      logActivity("handwriting", `Qo'lyozma yuklab olindi: ${kind.toUpperCase()}, ${pages.length} varaq`);
+      logActivity("handwriting", `Qo'lyozma yuklab olindi: ${kind.toUpperCase()}, ${pages.length} varaq, ${INKS[ink].label.toLowerCase()} ruchka`);
     } finally {
       setBusy(null);
     }
@@ -50,7 +51,16 @@ export default function HandwritingPage() {
 
   return (
     <PageWrap>
-      <ModuleHeader module={modules.handwriting} />
+      <ModuleHeader module={modules.handwriting}>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Ruchka rangi">
+          {(Object.keys(INKS) as InkColor[]).map((id) => (
+            <button key={id} role="radio" aria-checked={ink === id} data-active={ink === id} onClick={() => setInk(id)} className="chip">
+              <span className="size-3.5 rounded-full ring-2 ring-white/30" style={{ background: `rgb(${INKS[id].rgb.join(",")})` }} />
+              {INKS[id].label}
+            </button>
+          ))}
+        </div>
+      </ModuleHeader>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="glass flex flex-col rounded-3xl p-5">

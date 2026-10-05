@@ -1,19 +1,23 @@
-// Matnni daftar varag'iga (katak, A4) qo'lda yozilgandek chizadi — hammasi brauzerda, canvas orqali.
+// Matnni oddiy oq A4 varaqqa ruchka bilan qo'lda yozilgandek chizadi — hammasi brauzerda, canvas orqali.
 
 /** A4, 200 dpi. */
 export const PAGE_W = 1654;
 export const PAGE_H = 2339;
-/** Daftar katagi — 5 mm. */
-const CELL = Math.round((5 / 210) * PAGE_W);
-const GRID_X0 = (PAGE_W % CELL) / 2;
-const MARGIN_X = PAGE_W - 4 * CELL - GRID_X0; // qizil hoshiya chizig'i
-const TEXT_LEFT = GRID_X0 + 2 * CELL;
-const TEXT_RIGHT = MARGIN_X - CELL * 0.6;
-const LINE = 2 * CELL; // har ikki katakda bir qator, daftardagidek
+const MM = PAGE_W / 210;
+const TEXT_LEFT = 25 * MM; // hoshiyalar: chap 25 mm, o'ng 15 mm, tepa 20 mm
+const TEXT_RIGHT = PAGE_W - 15 * MM;
+const LINE = 10 * MM; // qatorlar orasi
 const FIRST_LINE = 2; // birinchi qator nechanchi qatorda
-const LAST_LINE = Math.floor((PAGE_H - 2 * CELL) / LINE);
-const FONT_SIZE = CELL * 1.35;
-const INK = [24, 44, 140] as const;
+const LAST_LINE = Math.floor((PAGE_H - 15 * MM) / LINE);
+const FONT_SIZE = 6.3 * MM;
+
+/** Sharikli ruchka siyohi ranglari. */
+export const INKS = {
+  blue: { label: "Ko'k", rgb: [22, 48, 168] },
+  black: { label: "Qora", rgb: [28, 28, 34] },
+  red: { label: "Qizil", rgb: [196, 30, 40] },
+} as const;
+export type InkColor = keyof typeof INKS;
 
 /** Shriftda yo'q belgilarni ko'rinishi bir xil bo'lganlariga almashtiradi. */
 function normalize(text: string): string {
@@ -78,30 +82,13 @@ function wrap(ctx: CanvasRenderingContext2D, text: string): Line[] {
 }
 
 function drawPaper(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = "#fdfdfb";
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, PAGE_W, PAGE_H);
-  ctx.strokeStyle = "rgba(90, 140, 200, 0.35)";
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  for (let x = GRID_X0; x <= PAGE_W; x += CELL) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, PAGE_H);
-  }
-  for (let y = 0; y <= PAGE_H; y += CELL) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(PAGE_W, y);
-  }
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(220, 60, 70, 0.65)";
-  ctx.lineWidth = 2.4;
-  ctx.beginPath();
-  ctx.moveTo(MARGIN_X, 0);
-  ctx.lineTo(MARGIN_X, PAGE_H);
-  ctx.stroke();
 }
 
 /** Matnni bir yoki bir nechta varaqqa chizadi. fontFamily — yuklangan qo'lyozma shrift. */
-export function renderHandwriting(text: string, fontFamily: string): HTMLCanvasElement[] {
+export function renderHandwriting(text: string, fontFamily: string, ink: InkColor = "blue"): HTMLCanvasElement[] {
+  const [ir, ig, ib] = INKS[ink].rgb;
   const clean = normalize(text);
   const random = rng(hash(clean));
   const jitter = (amp: number) => (random() * 2 - 1) * amp;
@@ -123,17 +110,17 @@ export function renderHandwriting(text: string, fontFamily: string): HTMLCanvasE
     const space = ctx.measureText(" ").width * 1.3;
 
     lines.slice(start, start + perPage).forEach((words, i) => {
-      const baseline = (FIRST_LINE + i) * LINE - CELL * 0.12;
+      const baseline = (FIRST_LINE + i) * LINE;
       const slope = jitter(0.006); // qator biroz qiyshayadi
-      let x = TEXT_LEFT + jitter(CELL * 0.15);
+      let x = TEXT_LEFT + jitter(MM * 0.75);
       for (const word of words) {
         const scale = 1 + jitter(0.04);
-        const y = baseline + (x - TEXT_LEFT) * slope + jitter(CELL * 0.05);
+        const y = baseline + (x - TEXT_LEFT) * slope + jitter(MM * 0.25);
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(jitter(0.02));
         ctx.scale(scale, scale);
-        ctx.fillStyle = `rgba(${INK[0]}, ${INK[1]}, ${INK[2]}, ${0.86 + random() * 0.14})`;
+        ctx.fillStyle = `rgba(${ir}, ${ig}, ${ib}, ${0.86 + random() * 0.14})`;
         ctx.fillText(word, 0, 0);
         ctx.restore();
         x += ctx.measureText(word).width * scale + space * (0.85 + random() * 0.3);

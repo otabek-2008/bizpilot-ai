@@ -123,7 +123,7 @@ export const modules: Record<ModuleId, AppModule> = {
     id: "handwriting",
     title: "Qo'lyozma",
     short: "Qo'lyozma",
-    desc: "Matnni yozing — u daftar varag'ida qo'lda yozilgandek chiqadi, PDF yoki PNG qilib yuklab oling",
+    desc: "Matnni yozing — u oq varaqda ruchka bilan qo'lda yozilgandek chiqadi, PDF yoki PNG qilib yuklab oling",
     href: "/dashboard/handwriting",
     icon: PenLine,
     from: "#2563eb",
