@@ -20,7 +20,9 @@ export default function HandwritingPage() {
     let cancelled = false;
     const t = setTimeout(async () => {
       const family = handFont.style.fontFamily;
-      await document.fonts.load(`40px ${family}`, input || "a");
+      // Faqat asosiy shriftni kutamiz: "… Fallback" yuzasi local(Arial)ga tayanadi va Arial yo'q qurilmalarda
+      // (Android, Linux) load() xato beradi. Shrift baribir yuklanmasa ham varaq chiziladi.
+      await document.fonts.load(`40px ${family.split(",")[0]}`, input || "a").catch(() => {});
       if (cancelled) return;
       const next = input.trim() ? renderHandwriting(input, family) : [];
       setPages(next);
