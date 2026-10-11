@@ -12,7 +12,7 @@ export async function buildPptx(deck: SlideDeck, theme: Theme): Promise<Blob> {
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
   pptx.title = deck.title;
-  pptx.company = "CampusAI";
+  pptx.company = "Studyra";
 
   const total = deck.slides.length + 1;
   const base = (n: number) => {

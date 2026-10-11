@@ -14,14 +14,14 @@ const steps = [
   { title: "Natijani oling", desc: "Nusxalang yoki yuklab oling. Fayllar brauzeringizdan chiqmaydi." },
 ];
 
-// Google'ga sayt nomi va nima ekanini aytadi (qidiruvda "CampusAI" nomi bilan chiqishi uchun)
+// Google'ga sayt nomi va nima ekanini aytadi (qidiruvda "Studyra" nomi bilan chiqishi uchun)
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
     {
       "@type": "WebSite",
       name: site.name,
-      alternateName: ["Campus AI", "campusai"],
+      alternateName: ["Studyra AI", "studyra"],
       url: site.url,
       inLanguage: "uz",
     },

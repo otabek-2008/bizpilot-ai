@@ -6,7 +6,7 @@ import city from "@/public/images/city.webp";
 
 export const metadata: Metadata = {
   title: "Kirish",
-  description: "CampusAI hisobingizga Google, Telegram yoki email orqali kiring.",
+  description: "Studyra hisobingizga Google, Telegram yoki email orqali kiring.",
   alternates: { canonical: "/login" },
 };
 
@@ -14,7 +14,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Xush kelibsiz"
-      subtitle="CampusAI hisobingizga kiring."
+      subtitle="Studyra hisobingizga kiring."
       image={city}
       imageAlt="Zamonaviy shahar binolari"
       headline="Barcha o'quv vositalaringiz bir joyda."

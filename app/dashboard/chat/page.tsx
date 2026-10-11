@@ -29,7 +29,7 @@ const storeKey = (uid: string) => `campusai:chat:${uid}`;
 const WELCOME: LocalMsg = {
   id: "welcome",
   role: "bot",
-  text: "Salom! Men CampusAI yordamchisiman. Vositalar haqida savol bering — javob topa olmasam, savolingizni to'g'ridan-to'g'ri adminga yuboraman.",
+  text: "Salom! Men Studyra yordamchisiman. Vositalar haqida savol bering — javob topa olmasam, savolingizni to'g'ridan-to'g'ri adminga yuboraman.",
   at: 0,
 };
 
@@ -158,7 +158,7 @@ export default function ChatPage() {
               <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-surface" />
             </span>
             <div className="flex-1">
-              <p className="text-sm font-medium">CampusAI yordamchi</p>
+              <p className="text-sm font-medium">Studyra yordamchi</p>
               <p className="text-xs text-emerald-300/80">onlayn · admin javoblari shu yerda</p>
             </div>
             <button onClick={clearHistory} title="Tarixni tozalash" aria-label="Tarixni tozalash" className="rounded-lg p-2 text-zinc-500 hover:bg-white/5 hover:text-white">

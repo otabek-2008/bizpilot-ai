@@ -16,7 +16,7 @@ export default function BootScreen() {
         </div>
         <div className="text-center">
           <p className="text-lg font-semibold">
-            Campus<span className="text-brand-400">AI</span>
+            Study<span className="text-brand-400">ra</span>
           </p>
           <div className="mx-auto mt-3 h-1 w-40 overflow-hidden rounded-full bg-white/10">
             <div className="skeleton h-full w-full !bg-[linear-gradient(90deg,transparent,#a78bfa,transparent)]" />

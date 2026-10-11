@@ -185,7 +185,7 @@ export default function TransliteratePage() {
                 className="chip disabled:opacity-40"
                 disabled={!output}
                 onClick={() => {
-                  downloadBlob(new Blob([output], { type: "text/plain;charset=utf-8" }), `campusai-${effective === "l2c" ? "kirill" : "lotin"}.txt`);
+                  downloadBlob(new Blob([output], { type: "text/plain;charset=utf-8" }), `studyra-${effective === "l2c" ? "kirill" : "lotin"}.txt`);
                   logActivity("translit", `${fromLabel} → ${toLabel}: .txt yuklab olindi`);
                 }}
               >

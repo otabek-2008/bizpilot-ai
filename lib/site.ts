@@ -1,6 +1,6 @@
 // Sayt bo'yicha umumiy sozlamalar — aloqa ma'lumotlarini shu yerdan o'zgartiring.
 export const site = {
-  name: "CampusAI",
+  name: "Studyra",
   tagline: "Talabalar uchun aqlli vositalar to'plami",
   // Saytning asosiy manzili (sitemap, canonical, ijtimoiy tarmoq rasmlari uchun). O'z domeningiz ulansa, env'da almashtiring.
   url: (process.env.NEXT_PUBLIC_SITE_URL || "https://bizpilot-ai-upl1.onrender.com").replace(/\/$/, ""),
@@ -13,5 +13,5 @@ export const telegramUrl = site.adminTelegram
   ? `https://t.me/${site.adminTelegram.replace(/^@/, "")}`
   : "";
 
-export const mailtoUrl = (subject = "CampusAI — savol") =>
+export const mailtoUrl = (subject = "Studyra — savol") =>
   `mailto:${site.adminEmail}?subject=${encodeURIComponent(subject)}`;

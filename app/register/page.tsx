@@ -6,7 +6,7 @@ import meeting from "@/public/images/meeting.webp";
 
 export const metadata: Metadata = {
   title: "Ro'yxatdan o'tish",
-  description: "CampusAI'da bepul hisob yarating — Google, Telegram yoki email orqali.",
+  description: "Studyra'da bepul hisob yarating — Google, Telegram yoki email orqali.",
   alternates: { canonical: "/register" },
 };
 

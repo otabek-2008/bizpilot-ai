@@ -38,10 +38,10 @@ export default function HandwritingPage() {
   async function download(kind: "pdf" | "png") {
     setBusy(kind);
     try {
-      if (kind === "pdf") downloadBlob(await pagesToPdf(pages), "campusai-qolyozma.pdf");
+      if (kind === "pdf") downloadBlob(await pagesToPdf(pages), "studyra-qolyozma.pdf");
       else {
         const { blob, ext } = await pagesToPng(pages);
-        downloadBlob(blob, `campusai-qolyozma.${ext}`);
+        downloadBlob(blob, `studyra-qolyozma.${ext}`);
       }
       logActivity("handwriting", `Qo'lyozma yuklab olindi: ${kind.toUpperCase()}, ${pages.length} varaq, ${INKS[ink].label.toLowerCase()} ruchka`);
     } finally {

@@ -94,7 +94,7 @@ export default function EssayPage() {
     const blob = await markdownToDocx(text, {
       cover: { ...cover, kind: KIND_TITLES[form.kind][form.language], topic: form.topic, subject: form.subject, lang: form.language },
     });
-    const name = form.topic.trim().replace(/[\\/:*?"<>|]+/g, "").slice(0, 60) || "campusai";
+    const name = form.topic.trim().replace(/[\\/:*?"<>|]+/g, "").slice(0, 60) || "studyra";
     downloadBlob(blob, `${name}.docx`);
     logActivity("essay", `.docx yuklab olindi: ${form.topic.slice(0, 40)}`);
   }

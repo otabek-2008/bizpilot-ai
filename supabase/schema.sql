@@ -1,4 +1,4 @@
--- CampusAI Supabase schema (BizPilot biznes reja jadvallari + CampusAI)
+-- Studyra Supabase schema (BizPilot biznes reja jadvallari + Studyra)
 -- Run this in the Supabase SQL editor once.
 
 -- Projects table
@@ -52,7 +52,7 @@ create policy "Users update own documents"
   using (auth.uid() = user_id);
 
 -- =====================================================================
--- CampusAI qo'shimchalari
+-- Studyra qo'shimchalari
 -- =====================================================================
 
 -- Chat va aloqa formasi xabarlari. Admin javobini Supabase dashboard'da

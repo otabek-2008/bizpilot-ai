@@ -26,7 +26,7 @@ export default function AdminNav() {
           <ShieldCheck size={18} />
         </span>
         <span className="font-semibold">
-          Campus<span className="text-brand-400">AI</span> <span className="text-zinc-500">admin</span>
+          Study<span className="text-brand-400">ra</span> <span className="text-zinc-500">admin</span>
         </span>
       </div>
       <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:px-3">

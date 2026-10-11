@@ -14,20 +14,20 @@ const geistMono = Geist_Mono({
 });
 
 const description =
-  "CampusAI — O'zbekistondagi talabalar uchun AI platforma (30 kun bepul): AI yordamchi, referat va esse yozish, imlo tekshiruvchi, prava testlari, CV, Lotin ↔ Kirill, 3×4 rasm, PDF ↔ Word konvertori.";
+  "Studyra — O'zbekistondagi talabalar uchun AI platforma (30 kun bepul): AI yordamchi, referat va esse yozish, imlo tekshiruvchi, prava testlari, CV, Lotin ↔ Kirill, 3×4 rasm, PDF ↔ Word konvertori.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   applicationName: site.name,
   title: {
-    default: "CampusAI — talabalar uchun aqlli AI vositalar",
-    template: "%s · CampusAI",
+    default: "Studyra — talabalar uchun aqlli AI vositalar",
+    template: "%s · Studyra",
   },
   description,
   keywords: [
-    "CampusAI",
-    "Campus AI",
-    "campusai",
+    "Studyra",
+    "studyra",
+    "Studyra AI",
     "talabalar uchun AI",
     "referat yozish",
     "esse yozish",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     siteName: site.name,
     locale: "uz_UZ",
     url: "/",
-    title: "CampusAI — talabalar uchun aqlli AI vositalar",
+    title: "Studyra — talabalar uchun aqlli AI vositalar",
     description,
   },
   twitter: { card: "summary_large_image" },

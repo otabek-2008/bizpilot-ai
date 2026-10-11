@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     const octo = await createOctoPayment({
       paymentId: data.id,
       amountUzs: sum,
-      description: `CampusAI Premium - ${plan.title}`,
+      description: `Studyra Premium - ${plan.title}`,
       userId: auth.user.id,
       email: auth.user.email && !auth.user.email.endsWith("@telegram.campusai.app") ? auth.user.email : undefined,
       returnUrl,

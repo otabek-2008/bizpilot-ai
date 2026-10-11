@@ -15,7 +15,7 @@ export default async function AdminLoginPage() {
           <ShieldCheck size={22} />
         </span>
         <h1 className="text-2xl font-semibold tracking-tight">Admin panel</h1>
-        <p className="mt-1 text-sm text-zinc-400">CampusAI boshqaruv paneliga kirish</p>
+        <p className="mt-1 text-sm text-zinc-400">Studyra boshqaruv paneliga kirish</p>
         {adminConfigured() ? (
           <LoginForm />
         ) : (

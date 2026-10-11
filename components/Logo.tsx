@@ -17,7 +17,7 @@ export default function Logo({
         <GraduationCap size={19} className="text-white" />
       </span>
       <span className="text-lg text-white">
-        Campus<span className="text-brand-400">AI</span>
+        Study<span className="text-brand-400">ra</span>
       </span>
     </Link>
   );

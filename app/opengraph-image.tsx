@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 // Telegram, Facebook va boshqalarda havola ulashilganda chiqadigan rasm
-export const alt = "CampusAI — talabalar uchun aqlli AI vositalar";
+export const alt = "Studyra — talabalar uchun aqlli AI vositalar";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -39,7 +39,7 @@ export default function Image() {
             </svg>
           </div>
           <div style={{ display: "flex", fontSize: 92, fontWeight: 700, letterSpacing: -2 }}>
-            Campus<span style={{ color: "#a78bfa" }}>AI</span>
+            Study<span style={{ color: "#a78bfa" }}>ra</span>
           </div>
         </div>
         <div style={{ marginTop: 44, fontSize: 44, color: "#e4e4e7", lineHeight: 1.3 }}>

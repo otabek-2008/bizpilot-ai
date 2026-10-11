@@ -1,4 +1,4 @@
-# CampusAI
+# Studyra
 
 Talabalar (va hamma) uchun aqlli vositalar platformasi. Next.js 16 + Supabase.
 
