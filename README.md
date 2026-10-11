@@ -8,7 +8,7 @@ Talabalar (va hamma) uchun aqlli vositalar platformasi. Next.js 16 + Supabase.
 | Harf registri | `/dashboard/case-converter` | KATTA / kichik / Sarlavha / Gap / teskari — brauzerda |
 | Lotin ↔ Kirill | `/dashboard/transliterate` | Matn va `.txt` / `.docx` (formatlash saqlanadi) — brauzerda |
 | 3×4 rasm | `/dashboard/photo-3x4` | Yuzni topib kesish, fonni almashtirish (MediaPipe), 300/600 DPI, 10×15 varaq |
-| Hujjat konvertori | `/dashboard/documents` | PDF→Word, Word→PDF, Rasm→PDF, PDF→Rasm, PDF birlashtirish — brauzerda |
+| Hujjat konvertori | `/dashboard/documents` | 17 format (PDF, DOCX, ODT, RTF, TXT, MD, HTML, EPUB, PPTX, XLSX, CSV, JSON, JPG, PNG, WEBP, GIF, BMP) orasida 220 yo'nalish + PDF birlashtirish — brauzerda (`lib/convert/`) |
 | Biznes reja AI | `/dashboard/business` | Avvalgi BizPilot: Claude AI orqali biznes/marketing/moliya rejasi |
 | Taqdimot | `/dashboard/presentation` | Tez kunda (UI tayyor) |
 | Chat | `/dashboard/chat` | FAQ bot + adminga savol (`support_messages`) |

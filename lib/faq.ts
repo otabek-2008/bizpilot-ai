@@ -32,8 +32,8 @@ export const faqs: Faq[] = [
   },
   {
     q: "PDF ni Word ga qanday aylantiraman?",
-    a: "Hujjat konvertori bo'limida «PDF → Word» ni tanlang va faylni yuklang. Matn va sarlavhalar tahrirlanadigan .docx ga o'tkaziladi. Skanerlangan PDF (rasm) uchun matnni tanib olish hozircha yo'q.",
-    keywords: ["pdf", "word", "docx", "konvert", "convert", "birlashtir", "merge", "hujjat"],
+    a: "Hujjat konvertori bo'limida «PDF → Word» ni tanlang va faylni yuklang. Matn va sarlavhalar tahrirlanadigan .docx ga o'tkaziladi. Konvertor 17 formatni qo'llaydi: PDF, Word, ODT, RTF, TXT, Markdown, HTML, EPUB, PowerPoint, Excel, CSV, JSON va rasmlar (JPG, PNG, WEBP, GIF, BMP) — istalganidan istalganiga. Skanerlangan PDF (rasm) uchun matnni tanib olish hozircha yo'q.",
+    keywords: ["pdf", "word", "docx", "konvert", "convert", "birlashtir", "merge", "hujjat", "excel", "xlsx", "csv", "pptx", "powerpoint", "odt", "rtf", "epub", "format", "jpg", "png"],
     module: "documents",
   },
   {

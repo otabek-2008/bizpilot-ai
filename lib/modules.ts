@@ -158,7 +158,7 @@ export const modules: Record<ModuleId, AppModule> = {
     id: "documents",
     title: "Hujjat konvertori",
     short: "Konvertor",
-    desc: "PDF ↔ Word, rasm ↔ PDF, PDF birlashtirish — hammasi brauzerda",
+    desc: "PDF, Word, Excel, PowerPoint, rasm va yana 12 format — istalganidan istalganiga, brauzerda",
     href: "/dashboard/documents",
     icon: FileStack,
     from: "#f43f5e",

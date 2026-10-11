@@ -26,12 +26,12 @@ async function openPdf(file: File) {
 
 // ---------------- PDF → Word ----------------
 
-type Piece = { str: string; x: number; y: number; w: number; size: number; eol: boolean };
-type Line = { text: string; size: number; y: number };
+export type Piece = { str: string; x: number; y: number; w: number; size: number; eol: boolean };
+export type Line = { text: string; size: number; y: number };
 // Chiziq: gorizontal uchun pos=y, from/to=x; vertikal uchun pos=x, from/to=y
 type Seg = { pos: number; from: number; to: number };
-type Cell = { row: number; col: number; rowSpan: number; colSpan: number; pieces: Piece[] };
-type GridTable = { xs: number[]; ys: number[]; cells: Cell[] };
+export type Cell = { row: number; col: number; rowSpan: number; colSpan: number; pieces: Piece[] };
+export type GridTable = { xs: number[]; ys: number[]; cells: Cell[] };
 type Matrix = [number, number, number, number, number, number];
 
 const TOL = 2; // pt
@@ -205,7 +205,7 @@ function findTables(h: Seg[], v: Seg[]): GridTable[] {
 }
 
 // Matn bo'laklarini qatorlarga yig'adi; bo'laklar orasidagi bo'shliq probel bilan saqlanadi
-function toLines(pieces: Piece[]): Line[] {
+export function toLines(pieces: Piece[]): Line[] {
   const lines: Line[] = [];
   let current: Line | null = null;
   let lastEnd = 0;
@@ -229,7 +229,7 @@ function toLines(pieces: Piece[]): Line[] {
 }
 
 // Yaqin qatorlarni bitta xatboshiga birlashtiradi
-function toBlocks(lines: Line[], breaksAt: number[] = []): Line[] {
+export function toBlocks(lines: Line[], breaksAt: number[] = []): Line[] {
   const blocks: Line[] = [];
   let buf: Line | null = null;
   lines.forEach((line, i) => {
@@ -252,10 +252,12 @@ function toBlocks(lines: Line[], breaksAt: number[] = []): Line[] {
   return blocks;
 }
 
-export async function pdfToWord(file: File, onProgress?: Progress): Promise<Blob> {
+export type PdfLayout = { pages: { lines: Line[]; tables: GridTable[] }[]; body: number };
+
+// PDF sahifalaridan matn qatorlari va chegarali jadvallarni ajratib oladi (PDF → Word va universal konvertor uchun)
+export async function extractPdf(file: File, onProgress?: Progress): Promise<PdfLayout> {
   const pdf = await openPdf(file);
   const { OPS } = await loadPdfJs();
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } = await import("docx");
 
   const pages: { lines: Line[]; tables: GridTable[] }[] = [];
   const sizes = new Map<number, number>();
@@ -327,6 +329,12 @@ export async function pdfToWord(file: File, onProgress?: Progress): Promise<Blob
 
   // Asosiy matn o'lchami — eng ko'p uchraydigan shrift o'lchami
   const body = [...sizes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 11;
+  return { pages, body };
+}
+
+export async function pdfToWord(file: File, onProgress?: Progress): Promise<Blob> {
+  const { pages, body } = await extractPdf(file, onProgress);
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } = await import("docx");
   const MAX_TABLE_W = 9026; // A4 dan 1" chekkalar ayirilgan kenglik, twip
 
   const textParagraph = (b: Line, inCell = false) => {
@@ -380,39 +388,46 @@ export async function pdfToWord(file: File, onProgress?: Progress): Promise<Blob
   return Packer.toBlob(new Document({ sections }));
 }
 
-// ---------------- Word → PDF ----------------
+// ---------------- HTML → sahifalar (PDF / rasm) ----------------
 
-export async function wordToPdf(file: File, onProgress?: Progress): Promise<Blob> {
-  if (/\.doc$/i.test(file.name)) {
-    throw new Error("Eski .doc formati qo'llab-quvvatlanmaydi. Faylni Word'da .docx sifatida saqlang.");
-  }
-  const mammoth = (await import("mammoth")).default;
-  const { value: html } = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
-  const html2canvas = (await import("html2canvas-pro")).default;
-  const { PDFDocument } = await import("pdf-lib");
+const PAGE_W = 794; // A4 kengligi, CSS px
+const PAGE_H = 1123;
+const MARGIN_X = 76;
+const MARGIN_Y = 72;
+const CONTENT_H = PAGE_H - MARGIN_Y * 2;
 
-  const PAGE_W = 794; // A4 kengligi, CSS px
-  const MARGIN_X = 76;
-  const MARGIN_Y = 72;
-  const CONTENT_H = 1123 - MARGIN_Y * 2;
-
-  // Hujjat alohida iframe ichida chiziladi — sayt stillari ta'sir qilmaydi.
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${PAGE_W}px;height:1123px;border:0;`;
-  document.body.appendChild(iframe);
-
-  try {
-    const doc = iframe.contentDocument!;
-    doc.open();
-    doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>
+export const BASE_DOC_CSS = `
       html,body{margin:0;background:#fff;color:#111}
-      body{width:${PAGE_W - MARGIN_X * 2}px;padding:0 ${MARGIN_X}px;font:12pt/1.45 "Times New Roman",Times,serif}
+      body{font:12pt/1.45 "Times New Roman",Times,serif}
       p{margin:0 0 8pt}
       h1{font-size:20pt;margin:12pt 0 8pt} h2{font-size:16pt;margin:10pt 0 6pt} h3{font-size:13pt;margin:8pt 0 6pt}
       img{max-width:100%;height:auto}
       table{border-collapse:collapse;width:100%;margin:6pt 0 10pt}
       td,th{border:1px solid #999;padding:4px 6px;vertical-align:top}
-      ul,ol{margin:0 0 8pt;padding-left:22pt}
+      ul,ol{margin:0 0 8pt;padding-left:22pt}`;
+
+// HTML'ni A4 sahifalarga bo'lib chizadi. Har bir sahifa — oq fonli to'liq A4 canvas (chekkalar bilan).
+// ".page-break" elementlari majburiy sahifa chegarasi hisoblanadi.
+export async function renderHtmlPages(
+  html: string,
+  css: string,
+  onPage: (canvas: HTMLCanvasElement, index: number, total: number) => Promise<void> | void,
+  scale = 2,
+): Promise<void> {
+  const html2canvas = (await import("html2canvas-pro")).default;
+
+  // Hujjat alohida iframe ichida chiziladi — sayt stillari ta'sir qilmaydi.
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${PAGE_W}px;height:${PAGE_H}px;border:0;`;
+  document.body.appendChild(iframe);
+
+  try {
+    const doc = iframe.contentDocument!;
+    doc.open();
+    doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>${css}
+      html,body{margin:0;background:#fff}
+      body{width:${PAGE_W - MARGIN_X * 2}px;padding:0 ${MARGIN_X}px;max-width:none;display:flow-root}
+      .page-break{height:0;margin:0;padding:0}
     </style></head><body>${html}</body></html>`);
     doc.close();
 
@@ -423,20 +438,27 @@ export async function wordToPdf(file: File, onProgress?: Progress): Promise<Blob
     );
 
     const bodyEl = doc.body;
-    const total = bodyEl.scrollHeight;
+    // flow-root ichki chekkalarni (masalan, birinchi sarlavhaning margin'i) body ichida ushlaydi — oxirgi qator kesilmaydi
+    const total = Math.ceil(Math.max(bodyEl.scrollHeight, bodyEl.getBoundingClientRect().bottom));
 
     // Sahifa chegarasini matn qatori o'rtasiga tushirmaslik uchun blok elementlar chegaralaridan foydalanamiz
-    const edges = Array.from(bodyEl.querySelectorAll("p,h1,h2,h3,h4,h5,h6,li,tr,img,hr,table"))
-      .map((el) => {
-        const r = el.getBoundingClientRect();
-        return r.bottom;
-      })
+    const edges = Array.from(bodyEl.querySelectorAll("p,h1,h2,h3,h4,h5,h6,li,tr,img,hr,table,pre,blockquote"))
+      .map((el) => el.getBoundingClientRect().bottom)
+      .sort((a, b) => a - b);
+    const forced = Array.from(bodyEl.querySelectorAll(".page-break"))
+      .map((el) => el.getBoundingClientRect().top)
       .sort((a, b) => a - b);
 
     const breaks: [number, number][] = [];
     let start = 0;
     while (start < total - 1) {
       const limit = start + CONTENT_H;
+      const hard = forced.find((y) => y > start + 1 && y <= limit);
+      if (hard !== undefined) {
+        breaks.push([start, Math.ceil(hard)]);
+        start = Math.ceil(hard);
+        continue;
+      }
       if (limit >= total) {
         breaks.push([start, total]);
         break;
@@ -448,31 +470,79 @@ export async function wordToPdf(file: File, onProgress?: Progress): Promise<Blob
     }
     if (!breaks.length) breaks.push([0, Math.max(1, total)]);
 
-    const pdf = await PDFDocument.create();
     for (let i = 0; i < breaks.length; i++) {
       const [y0, y1] = breaks[i];
-      const canvas = await html2canvas(bodyEl, {
+      const part = await html2canvas(bodyEl, {
         x: 0,
         y: y0,
         width: PAGE_W,
-        height: y1 - y0,
+        height: Math.max(1, y1 - y0),
         windowWidth: PAGE_W,
-        scale: 2,
+        scale,
         backgroundColor: "#ffffff",
         logging: false,
       });
-      const jpg = await pdf.embedJpg(canvas.toDataURL("image/jpeg", 0.92));
-      const page = pdf.addPage([A4.w, A4.h]);
-      const h = (y1 - y0) * PX_TO_PT;
-      page.drawImage(jpg, { x: 0, y: A4.h - MARGIN_Y * PX_TO_PT - h, width: PAGE_W * PX_TO_PT, height: h });
-      onProgress?.(i + 1, breaks.length);
+      // To'liq A4 varaq: yuqori chekka + kontent
+      const page = document.createElement("canvas");
+      page.width = Math.round(PAGE_W * scale);
+      page.height = Math.round(PAGE_H * scale);
+      const ctx = page.getContext("2d")!;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, page.width, page.height);
+      ctx.drawImage(part, 0, Math.round(MARGIN_Y * scale));
+      part.width = part.height = 0;
+      await onPage(page, i, breaks.length);
+      page.width = page.height = 0;
     }
-
-    const bytes = await pdf.save();
-    return new Blob([bytes as BlobPart], { type: "application/pdf" });
   } finally {
     iframe.remove();
   }
+}
+
+export async function htmlToPdf(html: string, css: string, onProgress?: Progress): Promise<Blob> {
+  const { PDFDocument } = await import("pdf-lib");
+  const pdf = await PDFDocument.create();
+  await renderHtmlPages(html, css, async (canvas, i, total) => {
+    const jpg = await pdf.embedJpg(canvas.toDataURL("image/jpeg", 0.92));
+    const page = pdf.addPage([A4.w, A4.h]);
+    page.drawImage(jpg, { x: 0, y: 0, width: A4.w, height: A4.h });
+    onProgress?.(i + 1, total);
+  });
+  const bytes = await pdf.save();
+  return new Blob([bytes as BlobPart], { type: "application/pdf" });
+}
+
+export type ImageFormat = "png" | "jpg" | "webp";
+export const IMAGE_MIME: Record<ImageFormat, string> = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" };
+
+export const canvasToBlob = (canvas: HTMLCanvasElement, format: ImageFormat) =>
+  new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Rasmni saqlab bo'lmadi."))), IMAGE_MIME[format], 0.92),
+  );
+
+export async function htmlToImages(html: string, css: string, format: ImageFormat, scale: number, onProgress?: Progress) {
+  const out: { blob: Blob; name: string }[] = [];
+  await renderHtmlPages(
+    html,
+    css,
+    async (canvas, i, total) => {
+      out.push({ blob: await canvasToBlob(canvas, format), name: `sahifa-${String(i + 1).padStart(3, "0")}.${format}` });
+      onProgress?.(i + 1, total);
+    },
+    scale,
+  );
+  return out;
+}
+
+// ---------------- Word → PDF ----------------
+
+export async function wordToPdf(file: File, onProgress?: Progress): Promise<Blob> {
+  if (/\.doc$/i.test(file.name)) {
+    throw new Error("Eski .doc formati qo'llab-quvvatlanmaydi. Faylni Word'da .docx sifatida saqlang.");
+  }
+  const mammoth = (await import("mammoth")).default;
+  const { value: html } = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
+  return htmlToPdf(html, BASE_DOC_CSS, onProgress);
 }
 
 // ---------------- Rasm → PDF ----------------
@@ -532,13 +602,12 @@ export async function imagesToPdf(files: File[], fit: PageFit, onProgress?: Prog
 
 export async function pdfToImages(
   file: File,
-  format: "png" | "jpg",
+  format: ImageFormat,
   scale: number,
   onProgress?: Progress,
 ): Promise<{ blob: Blob; name: string }[]> {
   const pdf = await openPdf(file);
   const out: { blob: Blob; name: string }[] = [];
-  const type = format === "png" ? "image/png" : "image/jpeg";
 
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
@@ -550,7 +619,7 @@ export async function pdfToImages(
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-    const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), type, 0.92));
+    const blob = await canvasToBlob(canvas, format);
     out.push({ blob, name: `sahifa-${String(p).padStart(3, "0")}.${format}` });
     canvas.width = canvas.height = 0;
     onProgress?.(p, pdf.numPages);
