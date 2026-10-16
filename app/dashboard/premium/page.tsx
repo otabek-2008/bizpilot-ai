@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabase";
 
 // Premium'ga kiradigan vositalar (lib/billing.ts dagi PAID_MODULES bilan bir xil).
 const INCLUDED: { label: string; ids: ModuleId[] }[] = [
-  { label: "AI vositalar", ids: ["assistant", "solver", "quiz", "translator", "essay", "presentation", "business", "spellcheck"] },
+  { label: "AI vositalar", ids: ["assistant", "solver", "quiz", "translator", "audio", "essay", "presentation", "business", "spellcheck"] },
   { label: "Imtihon", ids: ["prava"] },
   { label: "Hujjat va matn vositalari", ids: ["documents", "cv", "photo", "translit", "case"] },
 ];

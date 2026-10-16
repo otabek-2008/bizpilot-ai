@@ -1,4 +1,5 @@
 import {
+  AudioLines,
   BotMessageSquare,
   Briefcase,
   Crown,
@@ -54,6 +55,7 @@ export type ModuleId =
   | "abituriyent"
   | "quiz"
   | "translator"
+  | "audio"
   | "solver"
   | "chat"
   | "profile"
@@ -260,6 +262,18 @@ export const modules: Record<ModuleId, AppModule> = {
     enter: "slide",
     badge: "AI",
   },
+  audio: {
+    id: "audio",
+    title: "Audio ↔ Matn",
+    short: "Audio ↔ Matn",
+    desc: "Audio yoki ovozli yozuvni matnga aylantiring, matnni esa AI tuzatib, tabiiy ovozda o'qib beradi",
+    href: "/dashboard/audio",
+    icon: AudioLines,
+    from: "#ec4899",
+    to: "#8b5cf6",
+    enter: "pop",
+    badge: "AI",
+  },
   solver: {
     id: "solver",
     title: "Masala yechuvchi",
@@ -336,7 +350,7 @@ export const navGroups: { label?: string; items: ModuleId[] }[] = [
   { label: "Rasm vositalari", items: ["photo"] },
   { label: "Hujjat vositalari", items: ["documents", "cv"] },
   { label: "Imtihonlar", items: ["abituriyent", "prava"] },
-  { label: "AI vositalar", items: ["assistant", "solver", "quiz", "translator", "essay", "presentation", "business"] },
+  { label: "AI vositalar", items: ["assistant", "solver", "quiz", "translator", "audio", "essay", "presentation", "business"] },
   { label: "Yordam", items: ["chat", "contact"] },
   { label: "Hisob", items: ["profile"] },
 ];
@@ -348,6 +362,7 @@ export const toolIds: ModuleId[] = [
   "solver",
   "quiz",
   "translator",
+  "audio",
   "essay",
   "prava",
   "spellcheck",

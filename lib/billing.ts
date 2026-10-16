@@ -21,6 +21,7 @@ export const PAID_MODULES: ReadonlySet<ModuleId> = new Set<ModuleId>([
   "solver",
   "quiz",
   "translator",
+  "audio",
   "essay",
   "presentation",
   "business",
