@@ -833,3 +833,31 @@ grant execute on function public.payme_cancel(text, bigint, int) to service_role
 grant all on public.payments, public.subscriptions, public.ai_usage to service_role;
 
 notify pgrst, 'reload schema';
+
+
+-- ================= Himoya: loyiha hujjatlari va buyurtmalar =================
+
+-- Hujjat faqat foydalanuvchining o'z loyihasiga yoziladi (aks holda begona loyiha id'si bilan qator yaratib, uni band qilish mumkin edi).
+drop policy if exists "Users upsert own documents" on public.project_documents;
+create policy "Users upsert own documents"
+  on public.project_documents for insert
+  with check (
+    auth.uid() = user_id
+    and exists (select 1 from public.projects p where p.id = project_id and p.user_id = auth.uid())
+  );
+
+drop policy if exists "Users update own documents" on public.project_documents;
+create policy "Users update own documents"
+  on public.project_documents for update
+  using (auth.uid() = user_id)
+  with check (
+    auth.uid() = user_id
+    and exists (select 1 from public.projects p where p.id = project_id and p.user_id = auth.uid())
+  );
+
+-- To'lov tugmasini qayta-qayta bosib bazani buyurtmalar bilan to'ldirishga qarshi: kuniga ko'pi bilan 30 ta.
+drop trigger if exists limit_payments on public.payments;
+create trigger limit_payments before insert on public.payments
+  for each row execute function public.limit_daily_rows(30);
+
+notify pgrst, 'reload schema';

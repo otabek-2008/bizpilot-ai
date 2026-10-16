@@ -70,7 +70,9 @@ export default function AuthMethods({ mode }: { mode: Mode }) {
     if (!authError) return;
     // Hydratsiyadan keyin ko'rsatamiz; manzildan esa olib tashlaymiz (yangilaganda qayta chiqmasin)
     const t = setTimeout(() => {
-      setError(friendly(authError));
+      // Manzildagi matnni aynan ko'rsatmaymiz — aks holda havola orqali soxta xabar (fishing) chiqarish mumkin
+      const known = friendly(authError);
+      setError(known === authError ? "Kirishda xatolik yuz berdi. Qayta urinib ko'ring." : known);
       url.searchParams.delete("auth_error");
       window.history.replaceState(null, "", url.pathname + url.search);
     });

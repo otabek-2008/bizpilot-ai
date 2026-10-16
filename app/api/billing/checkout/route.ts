@@ -48,6 +48,9 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (error) {
+    if (error.message.includes("Kunlik chegara")) {
+      return Response.json({ error: "Bugun juda ko'p to'lov urinishi bo'ldi. Ertaga qayta urinib ko'ring." }, { status: 429 });
+    }
     console.error("Payment insert error:", error.message);
     return Response.json({ error: "Buyurtma yaratib bo'lmadi." }, { status: 500 });
   }
