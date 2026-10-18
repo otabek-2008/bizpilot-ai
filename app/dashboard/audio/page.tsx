@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Download, Eraser, FileAudio, Mic, Pause, Play, Square, Volume2 } from "lucide-react";
+import { Download, Eraser, FileAudio, FileText, Mic, Pause, Play, Square, Upload, Volume2 } from "lucide-react";
 import ModuleHeader, { PageWrap } from "@/components/ui/ModuleHeader";
 import CopyButton from "@/components/ui/CopyButton";
 import { Group, Pill } from "@/components/ui/Pills";
@@ -12,10 +12,13 @@ import { logActivity } from "@/lib/activity";
 import { downloadBlob } from "@/lib/download";
 import { supabase } from "@/lib/supabase";
 import { DICT_LANGS, type DictLang, appendDictation, splitForSpeech } from "@/lib/dictation";
+import { VOSK_MODELS, type TranscribeStage, transcribeFile } from "@/lib/transcribe";
 
-// Hammasi brauzerning o'zida ishlaydi (Web Speech API) — API kalit va AI kerak emas.
+// Hammasi brauzerning o'zida ishlaydi (Web Speech API, Vosk) — API kalit kerak emas. Faqat MP3 serverda (eSpeak NG).
 
 const MAX_TTS = 20000;
+const MAX_AUDIO_MB = 200;
+const MAX_TEXT_FILE_MB = 20;
 const RATES = [0.75, 1, 1.25, 1.5] as const;
 
 const bcp47 = (lang: DictLang) => DICT_LANGS.find((l) => l.id === lang)!.bcp47;
@@ -118,6 +121,8 @@ function SpeechToText() {
   const [listening, setListening] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState("");
+  const [fileJob, setFileJob] = useState<{ name: string; stage: TranscribeStage; ratio: number } | null>(null);
+  const fileAbort = useRef<AbortController | null>(null);
   const rec = useRef<Recognition | null>(null);
   const wanted = useRef(false); // foydalanuvchi to'xtatmaguncha qayta ulanadi
   const settings = useRef({ lang, commands });
@@ -129,6 +134,7 @@ function SpeechToText() {
     () => () => {
       wanted.current = false;
       rec.current?.abort();
+      fileAbort.current?.abort();
     },
     [],
   );
@@ -198,30 +204,96 @@ function SpeechToText() {
     if (text) logActivity("audio", `Ovoz → matn (${text.length} belgi)`);
   }
 
-  if (supported === false) {
-    return (
-      <Notice>
-        Brauzeringiz ovozli yozishni qo&apos;llamaydi. Saytni <b>Google Chrome</b>, <b>Microsoft Edge</b> yoki <b>Safari</b>&apos;da oching.
-      </Notice>
-    );
+  async function fromFile(file: File | undefined) {
+    if (!file || fileJob) return;
+    if (file.size > MAX_AUDIO_MB * 1024 * 1024) return setError(`Fayl ${MAX_AUDIO_MB} MB dan oshmasin.`);
+    setError("");
+    const controller = new AbortController();
+    fileAbort.current = controller;
+    setFileJob({ name: file.name, stage: "decode", ratio: 0 });
+    try {
+      const segments = await transcribeFile(file, lang, (stage, ratio) => setFileJob({ name: file.name, stage, ratio }), controller.signal);
+      if (!segments.length) throw new Error("Faylda nutq topilmadi. Til to'g'ri tanlanganini tekshiring.");
+      // Model tinish belgisi qo'ymaydi — har bir pauza gap oxiri deb olinadi
+      setText((prev) => {
+        let out = prev.trim() ? prev.replace(/\s*$/, "\n\n") : "";
+        for (const seg of segments) {
+          out = appendDictation(out, seg, lang, commands);
+          if (!/[.!?:;,]\s*$|\n$/.test(out)) out += ".";
+        }
+        return out;
+      });
+      logActivity("audio", `Audio fayl → matn: ${file.name}`);
+    } catch (e) {
+      if (!controller.signal.aborted) setError((e as Error).message);
+    } finally {
+      setFileJob(null);
+    }
   }
+
+  const busy = listening || !!fileJob;
 
   return (
     <>
       <FormError message={error} />
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="glass flex flex-col gap-4 rounded-3xl p-5">
+          {supported === false && (
+            <Notice>
+              Brauzeringiz mikrofondan yozishni qo&apos;llamaydi (Google Chrome, Microsoft Edge yoki Safari kerak), lekin audio faylni yuklab
+              matnga aylantirishingiz mumkin.
+            </Notice>
+          )}
           {listening ? (
             <button onClick={stop} className="chip w-full justify-center py-6 text-base">
               <span className="size-2.5 animate-pulse rounded-full bg-rose-500" /> {clock(seconds)} · <Square size={15} /> To&apos;xtatish
             </button>
           ) : (
-            <button onClick={start} disabled={!supported} className="btn-accent w-full py-6 text-base">
+            <button onClick={start} disabled={!supported || !!fileJob} className="btn-accent w-full py-6 text-base">
               <Mic size={18} /> Gapirishni boshlash
             </button>
           )}
 
-          <LangPills value={lang} onChange={setLang} disabled={listening} />
+          {fileJob ? (
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="mb-2 flex items-center gap-2 text-sm text-zinc-300">
+                <Spinner className="size-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{fileJob.name}</span>
+                <button onClick={() => fileAbort.current?.abort()} className="chip shrink-0 px-3 py-1 text-xs">
+                  Bekor qilish
+                </button>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`accent-gradient h-full rounded-full transition-[width] ${fileJob.stage === "model" ? "w-1/3 animate-pulse" : ""}`}
+                  style={fileJob.stage === "model" ? undefined : { width: `${Math.round((fileJob.stage === "decode" ? 0 : fileJob.ratio) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-zinc-500">
+                {fileJob.stage === "decode"
+                  ? "Fayl o'qilmoqda…"
+                  : fileJob.stage === "model"
+                    ? `Nutq modeli yuklanmoqda (~${VOSK_MODELS[lang].mb} MB, faqat birinchi marta)…`
+                    : `Matnga aylantirilmoqda… ${Math.round(fileJob.ratio * 100)}%`}
+              </p>
+            </div>
+          ) : (
+            <label className={`chip w-full justify-center py-3 ${listening ? "pointer-events-none opacity-40" : "cursor-pointer"}`}>
+              <Upload size={16} /> Audio yoki video fayl yuklash
+              <input
+                type="file"
+                accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.oga,.opus,.webm,.mp4,.aac,.flac"
+                className="sr-only"
+                disabled={listening}
+                onChange={(e) => {
+                  void fromFile(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
+
+          <LangPills value={lang} onChange={setLang} disabled={busy} />
 
           <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-300">
             <input
@@ -238,7 +310,7 @@ function SpeechToText() {
 
           <p className="mt-auto text-xs leading-relaxed text-zinc-500">
             Mikrofonga aniq va o&apos;rtacha tezlikda gapiring. Ovozni brauzer taniydi, shuning uchun internet kerak; eng yaxshi natija —
-            Google Chrome&apos;da.
+            Google Chrome&apos;da. Yuklangan fayl serverga yuborilmaydi — qurilmangizning o&apos;zida matnga aylantiriladi.
           </p>
         </div>
 
@@ -251,7 +323,7 @@ function SpeechToText() {
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Gapirgan so'zlaringiz shu yerda yoziladi. Matnni qo'lda tahrirlash ham mumkin."
+            placeholder="Gapirgan so'zlaringiz yoki fayldagi nutq shu yerda yoziladi. Matnni qo'lda tahrirlash ham mumkin."
             aria-label="Olingan matn"
             className="field accent-ring relative min-h-[280px] w-full flex-1 resize-y leading-relaxed"
           />
@@ -265,7 +337,7 @@ function SpeechToText() {
             >
               <Download size={15} /> TXT
             </button>
-            <button onClick={() => setText("")} disabled={!text || listening} className="chip disabled:opacity-40">
+            <button onClick={() => setText("")} disabled={!text || busy} className="chip disabled:opacity-40">
               <Eraser size={15} /> Tozalash
             </button>
           </div>
@@ -308,6 +380,7 @@ function TextToSpeech() {
   const [error, setError] = useState("");
   const [mp3, setMp3] = useState<{ blob: Blob; url: string } | null>(null);
   const [making, setMaking] = useState(false);
+  const [reading, setReading] = useState(false);
   const mp3Abort = useRef<AbortController | null>(null);
   const session = useRef(0); // eski o'qishdan kelgan hodisalarni e'tiborsiz qoldirish uchun
   const current = useRef<SpeechSynthesisUtterance | null>(null); // Chrome'da GC so'zlashuvni o'chirib qo'ymasin
@@ -360,6 +433,24 @@ function TextToSpeech() {
       if (!controller.signal.aborted) setError((e as Error).message);
     } finally {
       setMaking(false);
+    }
+  }
+
+  async function fromFile(file: File | undefined) {
+    if (!file) return;
+    if (file.size > MAX_TEXT_FILE_MB * 1024 * 1024) return setError(`Fayl ${MAX_TEXT_FILE_MB} MB dan oshmasin.`);
+    setError("");
+    setReading(true);
+    try {
+      const text = (await readTextFile(file)).trim();
+      if (!text) throw new Error("Faylda matn topilmadi.");
+      if (text.length > MAX_TTS) setError(`Fayldagi matn uzun — dastlabki ${MAX_TTS.toLocaleString()} belgisi olindi.`);
+      setInput(text.slice(0, MAX_TTS));
+      setMp3(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setReading(false);
     }
   }
 
@@ -424,7 +515,7 @@ function TextToSpeech() {
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value.slice(0, MAX_TTS))}
-              placeholder="Ovoz chiqarib o'qiladigan matn…"
+              placeholder="Ovoz chiqarib o'qiladigan matnni yozing yoki fayldan yuklang…"
               aria-label="Matn"
               className="field accent-ring min-h-[220px] w-full resize-y leading-relaxed"
             />
@@ -441,6 +532,20 @@ function TextToSpeech() {
               </button>
             </div>
           </div>
+
+          <label className={`chip w-full justify-center py-3 ${speaking || reading ? "pointer-events-none opacity-40" : "cursor-pointer"}`}>
+            {reading ? <Spinner className="size-4" /> : <FileText size={16} />} Fayldan yuklash (TXT, DOCX, PDF)
+            <input
+              type="file"
+              accept=".txt,.md,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="sr-only"
+              disabled={speaking || reading}
+              onChange={(e) => {
+                void fromFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
 
           <LangPills
             value={lang}
@@ -552,4 +657,24 @@ function TextToSpeech() {
       </div>
     </>
   );
+}
+
+/** TXT/MD, DOCX yoki PDF fayldan oddiy matn. */
+async function readTextFile(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".docx")) {
+    const mammoth = await import("mammoth");
+    try {
+      return (await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })).value;
+    } catch {
+      throw new Error("Word faylni o'qib bo'lmadi. Fayl .docx formatida ekanini tekshiring.");
+    }
+  }
+  if (name.endsWith(".pdf")) {
+    const { extractPdf } = await import("@/lib/doc-convert");
+    const { pages } = await extractPdf(file);
+    return pages.map((p) => p.lines.map((l) => l.text).join("\n")).join("\n\n");
+  }
+  if (name.endsWith(".doc")) throw new Error("Eski .doc formati qo'llanmaydi — faylni .docx qilib saqlang.");
+  return file.text();
 }

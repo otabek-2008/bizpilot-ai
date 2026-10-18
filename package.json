@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/copy-vendor.mjs",
+    "predev": "node scripts/copy-vendor.mjs && node scripts/fetch-vosk-models.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/copy-vendor.mjs",
+    "prebuild": "node scripts/copy-vendor.mjs && node scripts/fetch-vosk-models.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -30,6 +30,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
+    "vosk-browser": "^0.0.8",
     "zod": "^4.6.5"
   },
   "devDependencies": {
