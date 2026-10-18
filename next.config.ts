@@ -18,6 +18,8 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["172.20.10.5", "localhost", "127.0.0.1"],
   poweredByHeader: false,
+  // eSpeak WASM fayli node_modules'dan to'g'ridan-to'g'ri o'qiladi (bundle qilinmaydi)
+  serverExternalPackages: ["espeak-ng"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

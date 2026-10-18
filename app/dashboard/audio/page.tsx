@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Download, Eraser, Mic, Pause, Play, Square, Volume2 } from "lucide-react";
+import { Download, Eraser, FileAudio, Mic, Pause, Play, Square, Volume2 } from "lucide-react";
 import ModuleHeader, { PageWrap } from "@/components/ui/ModuleHeader";
 import CopyButton from "@/components/ui/CopyButton";
 import { Group, Pill } from "@/components/ui/Pills";
 import { FormError } from "@/components/AuthShell";
+import { Spinner } from "@/components/LoadingScreen";
 import { modules } from "@/lib/modules";
 import { logActivity } from "@/lib/activity";
 import { downloadBlob } from "@/lib/download";
+import { supabase } from "@/lib/supabase";
 import { DICT_LANGS, type DictLang, appendDictation, splitForSpeech } from "@/lib/dictation";
 
 // Hammasi brauzerning o'zida ishlaydi (Web Speech API) — API kalit va AI kerak emas.
@@ -304,6 +306,9 @@ function TextToSpeech() {
   const [index, setIndex] = useState(-1); // o'qilayotgan bo'lak; -1 — o'qilmayapti
   const [paused, setPaused] = useState(false);
   const [error, setError] = useState("");
+  const [mp3, setMp3] = useState<{ blob: Blob; url: string } | null>(null);
+  const [making, setMaking] = useState(false);
+  const mp3Abort = useRef<AbortController | null>(null);
   const session = useRef(0); // eski o'qishdan kelgan hodisalarni e'tiborsiz qoldirish uchun
   const current = useRef<SpeechSynthesisUtterance | null>(null); // Chrome'da GC so'zlashuvni o'chirib qo'ymasin
 
@@ -318,10 +323,45 @@ function TextToSpeech() {
   useEffect(
     () => () => {
       session.current++;
+      mp3Abort.current?.abort();
       if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     },
     [],
   );
+  useEffect(() => () => {
+    if (mp3) URL.revokeObjectURL(mp3.url);
+  }, [mp3]);
+
+  // MP3 serverda yaratiladi (eSpeak NG) — brauzer ovozlarini faylga yozib bo'lmaydi
+  async function makeMp3() {
+    const text = input.trim();
+    if (!text || making) return;
+    setError("");
+    setMp3(null);
+    setMaking(true);
+    const controller = new AbortController();
+    mp3Abort.current = controller;
+    try {
+      const {
+        data: { session: auth },
+      } = await supabase.auth.getSession();
+      if (!auth) throw new Error("Sessiya tugagan. Qayta kiring.");
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.access_token}` },
+        body: JSON.stringify({ text, lang, rate }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || "Audio yaratib bo'lmadi.");
+      const blob = await res.blob();
+      setMp3({ blob, url: URL.createObjectURL(blob) });
+      logActivity("audio", `Matn → MP3 (${text.length} belgi)`);
+    } catch (e) {
+      if (!controller.signal.aborted) setError((e as Error).message);
+    } finally {
+      setMaking(false);
+    }
+  }
 
   function speakFrom(parts: string[], i: number, id: number) {
     if (id !== session.current) return;
@@ -375,10 +415,6 @@ function TextToSpeech() {
     setPaused(!paused);
   }
 
-  if (supported === false) {
-    return <Notice>Brauzeringiz matnni ovoz chiqarib o&apos;qishni qo&apos;llamaydi. Google Chrome yoki Microsoft Edge&apos;da oching.</Notice>;
-  }
-
   return (
     <>
       <FormError message={error} />
@@ -406,11 +442,18 @@ function TextToSpeech() {
             </div>
           </div>
 
-          <LangPills value={lang} onChange={(l) => {
+          <LangPills
+            value={lang}
+            onChange={(l) => {
               setLang(l);
               setVoiceURI("");
-            }} disabled={speaking} />
+            }}
+            disabled={speaking}
+          />
 
+          {supported === false && (
+            <Notice>Brauzeringiz matnni ovoz chiqarib o&apos;qishni qo&apos;llamaydi, lekin MP3 faylni yaratib tinglashingiz mumkin.</Notice>
+          )}
           {voices && !matching.length && (
             <Notice>
               Qurilmangizda {DICT_LANGS.find((l) => l.id === lang)!.label.toLowerCase()} tilidagi ovoz topilmadi, matn boshqa ovozda
@@ -454,9 +497,20 @@ function TextToSpeech() {
               </button>
             </div>
           ) : (
-            <button onClick={play} disabled={!input.trim() || !voices} className="btn-accent mt-auto w-full py-3">
-              <Volume2 size={17} /> Tinglash
-            </button>
+            <div className="mt-auto grid grid-cols-2 gap-2">
+              <button onClick={play} disabled={!input.trim() || !voices} className="btn-accent py-3">
+                <Volume2 size={17} /> Tinglash
+              </button>
+              {making ? (
+                <button onClick={() => mp3Abort.current?.abort()} className="chip justify-center py-3">
+                  <Spinner className="size-4" /> Bekor qilish
+                </button>
+              ) : (
+                <button onClick={() => void makeMp3()} disabled={!input.trim()} className="chip justify-center py-3 disabled:opacity-40">
+                  <FileAudio size={16} /> MP3 yaratish
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -480,7 +534,18 @@ function TextToSpeech() {
             </div>
           ) : (
             <div className="relative grid min-h-[280px] flex-1 place-items-center rounded-[0.875rem] border border-dashed border-white/10 px-4 text-center text-sm text-zinc-600">
-              «Tinglash»ni bosing — o&apos;qilayotgan gap shu yerda belgilanib boradi
+              {making ? "MP3 tayyorlanmoqda…" : "«Tinglash»ni bosing — o'qilayotgan gap shu yerda belgilanib boradi"}
+            </div>
+          )}
+          {mp3 && (
+            <div className="relative mt-3 flex flex-col gap-2">
+              <audio src={mp3.url} controls className="w-full" />
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => downloadBlob(mp3.blob, `studyra-audio-${Date.now()}.mp3`)} className="chip">
+                  <Download size={15} /> MP3 yuklab olish
+                </button>
+                <span className="text-xs text-zinc-500">MP3 alohida, standart ovozda yaratiladi.</span>
+              </div>
             </div>
           )}
         </div>
