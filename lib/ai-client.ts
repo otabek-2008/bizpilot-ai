@@ -11,15 +11,10 @@ async function post(path: string, body: unknown, signal?: AbortSignal): Promise<
   } = await supabase.auth.getSession();
   if (!session) throw new Error("Sessiya tugagan. Qayta kiring.");
 
-  // FormData (fayl) bo'lsa, Content-Type'ni brauzer o'zi qo'yadi
-  const form = body instanceof FormData;
   const res = await fetch(path, {
     method: "POST",
-    headers: {
-      ...(form ? {} : { "Content-Type": "application/json" }),
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: form ? body : JSON.stringify(body),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify(body),
     signal,
   });
   if (!res.ok) {
@@ -31,11 +26,6 @@ async function post(path: string, body: unknown, signal?: AbortSignal): Promise<
 
 export async function aiJson<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   return (await post(path, body, signal)).json() as Promise<T>;
-}
-
-/** Fayl kabi ikkilik javob (masalan, MP3 audio). */
-export async function aiBlob(path: string, body: unknown, signal?: AbortSignal): Promise<Blob> {
-  return (await post(path, body, signal)).blob();
 }
 
 /** Matnni bo'laklab oladi; onText har safar to'plangan to'liq matn bilan chaqiriladi. */
